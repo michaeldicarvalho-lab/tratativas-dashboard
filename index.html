@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tratativas de Pagamento · Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg0: #081522;
+  --bg1: #0d1f33;
+  --bg2: #122540;
+  --bg3: #172d4e;
+  --blue: #1b8cf4;
+  --blue-dim: rgba(27,140,244,0.12);
+  --green: #00d48a;
+  --green-dim: rgba(0,212,138,0.12);
+  --red: #f44336;
+  --red-dim: rgba(244,67,54,0.12);
+  --yellow: #ffc107;
+  --yellow-dim: rgba(255,193,7,0.12);
+  --purple: #b060ff;
+  --purple-dim: rgba(176,96,255,0.12);
+  --orange: #ff7a00;
+  --orange-dim: rgba(255,122,0,0.12);
+  --border: rgba(255,255,255,0.07);
+  --t1: #e2eaf5;
+  --t2: #7a9bbf;
+  --t3: #4a6a8a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{font-size:14px}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg0);color:var(--t1);min-height:100vh;overflow-x:hidden}
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg0)}
+::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--blue)}
+
+/* ─── HEADER ─── */
+.header{
+  background:var(--bg1);
+  border-bottom:1px solid var(--border);
+  padding:13px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{
+  width:42px;height:42px;
+  background:linear-gradient(135deg,#1b5fc8,#1b8cf4);
+  border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:20px;flex-shrink:0;
+}
+.logo-text h1{font-size:15px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+.logo-text p{font-size:10px;color:var(--t2);letter-spacing:.4px;text-transform:uppercase;margin-top:1px}
+.header-actions{display:flex;align-items:center;gap:10px}
+.live-dot{
+  width:7px;height:7px;border-radius:50%;background:var(--green);
+  display:inline-block;animation:pulse 2s infinite;
+}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(0,212,138,.5)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.last-upd{font-size:11px;color:var(--t2)}
+.last-upd b{color:var(--green)}
+
+/* ─── BUTTONS ─── */
+.btn{
+  padding:7px 14px;border-radius:7px;border:none;cursor:pointer;
+  font-size:12px;font-weight:600;transition:.15s;
+}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover{background:#1578d4}
+.btn-outline{
+  background:transparent;color:var(--t2);
+  border:1px solid var(--border);
+}
+.btn-outline:hover{border-color:var(--blue);color:var(--t1)}
+
+/* ─── CONFIG BAR ─── */
+.config-bar{
+  background:rgba(27,140,244,.05);
+  border-bottom:1px solid rgba(27,140,244,.15);
+  padding:6px 24px;
+  display:flex;align-items:center;gap:8px;font-size:11px;color:var(--t2);
+}
+.config-bar .url-pill{
+  background:rgba(27,140,244,.1);color:var(--blue);
+  padding:2px 10px;border-radius:20px;font-family:monospace;font-size:10px;
+  max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* ─── SEARCH BAR ─── */
+.search-bar{
+  background:var(--bg1);border-bottom:1px solid var(--border);
+  padding:10px 24px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+}
+.inp{
+  background:var(--bg2);border:1px solid var(--border);
+  color:var(--t1);padding:7px 13px;border-radius:7px;font-size:12px;
+  transition:.15s;
+}
+.inp:focus{outline:none;border-color:var(--blue);background:var(--bg3)}
+.inp::placeholder{color:var(--t3)}
+.inp-sm{min-width:160px;flex:0 0 auto}
+.inp-md{min-width:200px;flex:1 1 200px;max-width:260px}
+
+/* ─── DRIVER SUMMARY ─── */
+.driver-card{
+  margin:12px 24px;
+  background:linear-gradient(135deg,var(--bg2),var(--bg1));
+  border:1px solid rgba(27,140,244,.3);
+  border-radius:12px;padding:16px 20px;
+  display:none;
+}
+.driver-card.show{display:block}
+.driver-card h3{font-size:13px;color:var(--blue);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.dstats{display:flex;flex-wrap:wrap;gap:10px}
+.dstat{
+  background:var(--bg0);border:1px solid var(--border);
+  border-radius:8px;padding:10px 16px;
+}
+.dstat-val{font-size:18px;font-weight:700;line-height:1}
+.dstat-lbl{font-size:10px;color:var(--t2);margin-top:3px;text-transform:uppercase;letter-spacing:.4px}
+
+/* ─── KPI ROW ─── */
+.kpi-row{
+  display:flex;gap:12px;padding:14px 24px 6px;
+  overflow-x:auto;
+}
+.kpi{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:12px;padding:16px;flex:1;min-width:140px;
+  position:relative;overflow:hidden;
+}
+.kpi::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  border-radius:12px 12px 0 0;
+}
+.kpi.blue::after{background:var(--blue)}
+.kpi.green::after{background:var(--green)}
+.kpi.red::after{background:var(--red)}
+.kpi.yellow::after{background:var(--yellow)}
+.kpi.purple::after{background:var(--purple)}
+.kpi.orange::after{background:var(--orange)}
+.kpi-ico{font-size:22px;margin-bottom:6px;opacity:.9}
+.kpi-val{font-size:24px;font-weight:700;line-height:1;letter-spacing:-.5px}
+.kpi-lbl{font-size:10px;color:var(--t2);margin-top:4px;text-transform:uppercase;letter-spacing:.4px}
+.kpi-sub{font-size:11px;margin-top:5px}
+.kpi-sub.pos{color:var(--green)}.kpi-sub.neg{color:var(--red)}
+
+/* ─── CHARTS ─── */
+.charts-row{
+  display:grid;grid-template-columns:1fr 1fr 1fr;
+  gap:12px;padding:6px 24px;
+}
+.chart-card{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:12px;padding:16px;
+}
+.card-title{
+  font-size:11px;font-weight:600;color:var(--t2);
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;
+}
+.chart-wrap{position:relative;height:220px}
+
+/* ─── TABLE ─── */
+.table-section{padding:6px 24px 28px}
+.table-card{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;
+}
+.table-topbar{
+  padding:13px 18px;display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid var(--border);
+}
+.table-topbar h3{font-size:13px;font-weight:600}
+.count-pill{
+  background:var(--bg1);color:var(--t2);
+  font-size:11px;padding:3px 12px;border-radius:20px;border:1px solid var(--border);
+}
+.tbl-wrap{overflow:auto;max-height:520px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{background:var(--bg1);position:sticky;top:0;z-index:10}
+th{
+  padding:10px 14px;text-align:left;font-size:10px;font-weight:600;
+  color:var(--t2);text-transform:uppercase;letter-spacing:.4px;
+  border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;
+}
+th:hover{color:var(--t1)}
+tbody tr{border-bottom:1px solid rgba(255,255,255,.035);transition:.1s}
+tbody tr:hover{background:var(--blue-dim)}
+td{padding:9px 14px;white-space:nowrap}
+
+/* ─── BADGES ─── */
+.badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.3px;
+}
+.b-aprov{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,212,138,.25)}
+.b-recus{background:var(--red-dim);color:var(--red);border:1px solid rgba(244,67,54,.25)}
+.b-dupli{background:var(--yellow-dim);color:var(--yellow);border:1px solid rgba(255,193,7,.25)}
+.b-inval{background:var(--purple-dim);color:var(--purple);border:1px solid rgba(176,96,255,.25)}
+.b-pend{background:var(--orange-dim);color:var(--orange);border:1px solid rgba(255,122,0,.25)}
+.b-lanc{background:var(--blue-dim);color:var(--blue);border:1px solid rgba(27,140,244,.25)}
+
+.typ{
+  display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;
+}
+.t-pedagio{background:rgba(27,140,244,.15);color:#60b8ff}
+.t-errrkm{background:rgba(255,122,0,.15);color:#ffaa44}
+.t-rota{background:rgba(176,96,255,.15);color:#cc88ff}
+.t-contest{background:rgba(255,193,7,.15);color:#ffdd44}
+
+/* ─── MODAL ─── */
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.75);
+  display:none;align-items:center;justify-content:center;z-index:500;
+}
+.overlay.show{display:flex}
+.modal{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:14px;padding:24px;width:480px;max-width:92vw;
+}
+.modal h3{font-size:15px;color:var(--blue);margin-bottom:18px}
+.fg{margin-bottom:13px}
+.fg label{display:block;font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.fg input,.fg select{
+  width:100%;background:var(--bg1);border:1px solid var(--border);
+  color:var(--t1);padding:9px 12px;border-radius:7px;font-size:12px;
+}
+.fg input:focus,.fg select:focus{outline:none;border-color:var(--blue)}
+.hint{
+  font-size:10px;color:var(--t2);
+  background:var(--bg1);border-radius:7px;padding:10px 12px;
+  margin-bottom:14px;line-height:1.6;
+}
+.hint b{color:var(--t1)}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end}
+
+/* ─── SPINNER ─── */
+.spinner-wrap{padding:40px;text-align:center;color:var(--t2)}
+.spin{
+  width:28px;height:28px;border:3px solid var(--bg3);
+  border-top-color:var(--blue);border-radius:50%;
+  animation:rot .8s linear infinite;margin:0 auto 10px;
+}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* ─── LINK BTN ─── */
+.link-btn{
+  color:var(--blue);font-size:11px;text-decoration:none;
+  background:var(--blue-dim);padding:2px 8px;border-radius:4px;
+  border:1px solid rgba(27,140,244,.2);display:inline-block;
+}
+.link-btn:hover{background:rgba(27,140,244,.2)}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:1100px){.charts-row{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.charts-row{grid-template-columns:1fr}.kpi-row{flex-wrap:wrap}}
+
+/* value colors */
+.val-green{color:var(--green);font-weight:600}
+.val-gray{color:var(--t3)}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════ HEADER ════════════════════════════ -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">🚚</div>
+    <div class="logo-text">
+      <h1>Tratativas de Pagamento</h1>
+      <p>Dashboard de Acompanhamento · TL Pamela</p>
+    </div>
+  </div>
+  <div class="header-actions">
+    <span class="last-upd"><span class="live-dot"></span> &nbsp;Atualizado: <b id="upd">—</b></span>
+    <button class="btn btn-outline" onclick="refreshData()">↻ Atualizar</button>
+    <button class="btn btn-primary" onclick="showCfg()">⚙ Configurar Sheets</button>
+  </div>
+</header>
+
+<!-- ════════════════════════════ CONFIG BAR ════════════════════════════ -->
+<div class="config-bar">
+  <span>📊 Fonte:</span>
+  <span class="url-pill" id="srcLbl">Dados embutidos · configure o Google Sheets em ⚙</span>
+  <span id="srcStatus" style="color:var(--yellow)">⬤ Local</span>
+</div>
+
+<!-- ════════════════════════════ FILTERS ════════════════════════════ -->
+<div class="search-bar">
+  <input class="inp inp-md" id="sPlate" placeholder="🔍 Placa do veículo..." oninput="applyFilters()">
+  <input class="inp inp-md" id="sDriver" placeholder="👤 Nome do motorista..." oninput="applyFilters()">
+  <select class="inp inp-sm" id="sStatus" onchange="applyFilters()">
+    <option value="">Todos os Status</option>
+    <option value="APROVADO">✅ Aprovado</option>
+    <option value="RECUSADO">❌ Recusado</option>
+    <option value="DUPLICADO">⚠️ Duplicado</option>
+    <option value="INVÁLIDO">⛔ Inválido</option>
+    <option value="PENDENTE">⏳ Pendente</option>
+  </select>
+  <select class="inp inp-sm" id="sType" onchange="applyFilters()" style="min-width:190px">
+    <option value="">Todos os Tipos</option>
+    <option value="PEDÁGIO">🛣️ Pedágio</option>
+    <option value="ERRO KM (TABELA)">📏 Erro KM (Tabela)</option>
+    <option value="ROTA FALTANTE (FECHAMENTO)">📦 Rota Faltante</option>
+    <option value="CONTESTAÇÃO DESCONTOS">💬 Contestação Desconto</option>
+  </select>
+  <select class="inp inp-sm" id="sHub" onchange="applyFilters()">
+    <option value="">Todos HUBs</option>
+  </select>
+  <button class="btn btn-outline" onclick="clearFilters()">✕ Limpar</button>
+</div>
+
+<!-- ════════════════════════════ DRIVER CARD ════════════════════════════ -->
+<div class="driver-card" id="driverCard">
+  <h3>📋 <span id="driverCardTitle">Resumo</span></h3>
+  <div class="dstats" id="driverStats"></div>
+</div>
+
+<!-- ════════════════════════════ KPIs ════════════════════════════ -->
+<div class="kpi-row">
+  <div class="kpi blue">
+    <div class="kpi-ico">📋</div>
+    <div class="kpi-val" id="kTotal">—</div>
+    <div class="kpi-lbl">Total de Tratativas</div>
+  </div>
+  <div class="kpi green">
+    <div class="kpi-ico">✅</div>
+    <div class="kpi-val" id="kAprov">—</div>
+    <div class="kpi-lbl">Aprovadas</div>
+    <div class="kpi-sub pos" id="kAprovPct">—</div>
+  </div>
+  <div class="kpi red">
+    <div class="kpi-ico">❌</div>
+    <div class="kpi-val" id="kRecus">—</div>
+    <div class="kpi-lbl">Recusadas / Duplicadas</div>
+    <div class="kpi-sub neg" id="kRecusPct">—</div>
+  </div>
+  <div class="kpi yellow">
+    <div class="kpi-ico">⏳</div>
+    <div class="kpi-val" id="kPend">—</div>
+    <div class="kpi-lbl">Pendentes (Sem Status)</div>
+  </div>
+  <div class="kpi purple">
+    <div class="kpi-ico">💰</div>
+    <div class="kpi-val" id="kValor">—</div>
+    <div class="kpi-lbl">Valor Total Aprovado</div>
+  </div>
+  <div class="kpi orange">
+    <div class="kpi-ico">🔵</div>
+    <div class="kpi-val" id="kCompl">—</div>
+    <div class="kpi-lbl">Lançados TL Pamela</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════ CHARTS ════════════════════════════ -->
+<div class="charts-row">
+  <div class="chart-card">
+    <div class="card-title">Distribuição por Status</div>
+    <div class="chart-wrap"><canvas id="cStatus"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="card-title">Tipos de Solicitação</div>
+    <div class="chart-wrap"><canvas id="cTypes"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="card-title">Top Motoristas · Valor Aprovado (R$)</div>
+    <div class="chart-wrap"><canvas id="cDrivers"></canvas></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════ TABLE ════════════════════════════ -->
+<div class="table-section">
+  <div class="table-card">
+    <div class="table-topbar">
+      <h3>📊 Registros de Tratativas</h3>
+      <span class="count-pill" id="tCount">0 registros</span>
+    </div>
+    <div class="tbl-wrap">
+      <div id="tblLoading" class="spinner-wrap">
+        <div class="spin"></div>
+        <div>Carregando dados...</div>
+      </div>
+      <table id="mainTable" style="display:none">
+        <thead>
+          <tr>
+            <th onclick="doSort('timestamp')">Data/Hora ↕</th>
+            <th onclick="doSort('routeDate')">Data Rota ↕</th>
+            <th>HUB</th>
+            <th onclick="doSort('plate')">Placa ↕</th>
+            <th>ID Rota</th>
+            <th onclick="doSort('driver')">Motorista ↕</th>
+            <th>Tipo</th>
+            <th onclick="doSort('value')">Valor ↕</th>
+            <th onclick="doSort('statusOps')">Status OPS ↕</th>
+            <th>Complementar TL</th>
+            <th>OBS</th>
+            <th>Print</th>
+          </tr>
+        </thead>
+        <tbody id="tBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════ CONFIG MODAL ════════════════════════════ -->
+<div class="overlay" id="cfgOverlay">
+  <div class="modal">
+    <h3>⚙ Conectar ao Google Sheets</h3>
+    <div class="hint">
+      <b>Como encontrar o ID da planilha:</b><br>
+      Na URL: docs.google.com/spreadsheets/d/<b style="color:var(--yellow)">SEU_ID_AQUI</b>/edit<br><br>
+      <b>Requisito:</b> Planilha deve estar compartilhada como <b>"Qualquer pessoa com o link pode visualizar"</b>.<br>
+      Vá em Arquivo → Compartilhar → Publicar na web → CSV para garantir acesso.
+    </div>
+    <div class="fg">
+      <label>ID da Planilha Google Sheets *</label>
+      <input id="cfgId" placeholder="Ex: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms">
+    </div>
+    <div class="fg">
+      <label>Nome da Aba (como está na planilha)</label>
+      <input id="cfgSheet" placeholder="Respostas ao formulário 1">
+    </div>
+    <div class="fg">
+      <label>Intervalo de atualização automática</label>
+      <select id="cfgInterval">
+        <option value="0">Desativado</option>
+        <option value="30">30 segundos</option>
+        <option value="60" selected>1 minuto</option>
+        <option value="300">5 minutos</option>
+        <option value="600">10 minutos</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeCfg()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveCfg()">Salvar e Conectar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+// CONFIG & STATE
+// ════════════════════════════════════════════
+let CFG = {
+  sheetId:   localStorage.getItem('sheetId')   || '',
+  sheetName: localStorage.getItem('sheetName') || 'Respostas ao formulário 1',
+  interval:  parseInt(localStorage.getItem('interval') || '60'),
+};
+
+let allData = [];
+let filteredData = [];
+let sortCfg = { field: 'timestamp', dir: 'desc' };
+let charts = {};
+let autoTimer = null;
+
+// ════════════════════════════════════════════
+// EMBEDDED DATA (base de dados fornecida)
+// ════════════════════════════════════════════
+// Estrutura: [timestamp, routeDate, hub, plate, routeId, driver, type, value, printUrl, statusOps, statusTL, obs]
+const EMBEDDED_RAW = [
+["03/04/2026 01:09","28/03/2026","SSP9","OQT2I13","358567889","David Mayk Filetti","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["02/04/2026 19:03","02/04/2026","SSP9","EVK5B94","360492035","Agrisio Eduardo Pistarini","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["04/04/2026 12:37","23/03/2026","SSP9","FQO6F94","356020218","Ariana Marisa","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["04/04/2026 12:45","24/03/2026","SSP9","FQO6F94","356264112","Ariana Marisa","PEDÁGIO",23.4,"APROVADO","LANÇADO",""],
+["04/04/2026 12:51","30/03/2026","SSP9","FQO6F94","359192436","Ariana Marisa","PEDÁGIO",9.2,"APROVADO","LANÇADO",""],
+["06/04/2026 19:14","31/03/2026","SSP9","RMX6I50","359708497","Luiz Ventura","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["06/04/2026 22:54","04/04/2026","SSP9","FVX1F65","361357977","Adilson Delevedove Junior","ERRO KM (TABELA)",52.54,"","",""],
+["07/04/2026 11:20","07/04/2026","SSP9","OQT2I13","362251842","David Mayk Filetti","PEDÁGIO",25.2,"APROVADO","LANÇADO",""],
+["07/04/2026 20:06","07/04/2026","SSP9","FXR8A95","362297608","Vinicius Emanuel Gomes","PEDÁGIO",23.5,"APROVADO","LANÇADO",""],
+["07/04/2026 20:30","24/03/2026","SSP9","FUN8D10","356420884","Julian Ronaldo Fernandes Sette","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["07/04/2026 20:40","28/03/2026","SSP9","FUN8D10","358572047","Julian Ronaldo Fernandes Sette","PEDÁGIO",36,"APROVADO","LANÇADO",""],
+["07/04/2026 20:46","29/03/2026","SSP9","FUN8D10","358745458","Julian Ronaldo Fernandes Sette","PEDÁGIO",40.8,"APROVADO","LANÇADO",""],
+["07/04/2026 20:57","02/04/2026","SSP9","FUN8D10","360656808","Julian Ronaldo Fernandes Sette","PEDÁGIO",9.2,"APROVADO","LANÇADO",""],
+["07/04/2026 20:59","06/04/2026","SSP9","FUN8D10","362023538","Julian Ronaldo Fernandes Sette","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["07/04/2026 21:05","07/04/2026","SSP9","FUN8D10","362532955","Julian Ronaldo Fernandes Sette","PEDÁGIO",40.8,"APROVADO","LANÇADO",""],
+["07/04/2026 20:34","25/03/2026","SSP9","FUN8D10","357103818","Julian Ronaldo Fernandes Sette","PEDÁGIO",40.8,"APROVADO","LANÇADO",""],
+["07/04/2026 20:37","26/03/2026","SSP9","FUN8D10","357640438","Julian Ronaldo Fernandes Sette","PEDÁGIO",9.2,"APROVADO","LANÇADO",""],
+["08/04/2026 23:18","01/04/2026","SSP9","FUN8D10","360255162","Julian Ronaldo Fernandes Sette","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["10/04/2026 20:46","08/04/2026","SSP29","EYG0I69","362792179","Antonio Marcos Sérgio Purchio","ERRO KM (TABELA)",39.71,"APROVADO","LANÇADO",""],
+["10/04/2026 20:47","02/04/2026","SSP29","EYG0I69","360469173","Antonio M. S. Purchio","ERRO KM (TABELA)",58.02,"APROVADO","LANÇADO",""],
+["10/04/2026 20:48","31/03/2026","SSP29","EYG0I69","359462181","Antonio M. S. Purchio","ERRO KM (TABELA)",44.33,"APROVADO","LANÇADO",""],
+["10/04/2026 20:47","09/04/2026","SSP29","EYG0I69","363311355","Antonio Marcos Sérgio Purchio","ERRO KM (TABELA)",35.85,"APROVADO","LANÇADO",""],
+["11/04/2026 20:34","09/04/2026","SSP29","FMR8C01","363316612","Cristian Cabral Teves","ERRO KM (TABELA)",43.25,"APROVADO","LANÇADO",""],
+["11/04/2026 20:37","10/04/2026","SSP29","FMR8C01","364078352","Cristian Cabral Teves","PEDÁGIO",39.8,"APROVADO","LANÇADO",""],
+["11/04/2026 20:30","07/04/2026","SSP29","FMR8C01","362248020","Cristian Cabral Teves","PEDÁGIO",20.2,"APROVADO","LANÇADO",""],
+["11/04/2026 21:00","10/04/2026","SSP9","FUN8D10","364233934","Julian Ronaldo Fernandes Sette","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["11/04/2026 21:01","11/04/2026","SSP9","FUN8D10","364631968","Julian Ronaldo Fernandes Sette","PEDÁGIO",9.2,"APROVADO","LANÇADO",""],
+["11/04/2026 23:28","10/04/2026","SSP9","FFW4I31","364247759","Vitor Emanoel de Souza","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["11/04/2026 23:25","10/04/2026","SSP9","FFW4I31","363958379","Vitor Emanoel de Souza","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["11/04/2026 14:58","10/04/2026","SSP9","EVX6C96","363879902","Leandro Bernardo de Lorena","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["11/04/2026 20:58","10/04/2026","SSP9","FUN8D10","363977328","Julian Ronaldo Fernandes Sette","PEDÁGIO",27.6,"APROVADO","LANÇADO",""],
+["12/04/2026 08:05","11/04/2026","SSP9","FVX1F65","364632213","Adilson Delevedove Junior","PEDÁGIO",25.2,"APROVADO","LANÇADO",""],
+["12/04/2026 08:13","11/04/2026","SSP9","FVX1F65","364395886","Adilson Delevedove Junior","PEDÁGIO",40.8,"APROVADO","LANÇADO",""],
+["12/04/2026 12:42","10/04/2026","SSP9","EVX6C96","364100689","Leandro Bernardo de Lorena","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["12/04/2026 12:45","11/04/2026","SSP9","EVX6C96","364388788","Leandro Bernardo de Lorena","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["12/04/2026 15:30","11/04/2026","SSP9","PXP0E88","364538098","Agemiro Catóia Ferreira","PEDÁGIO",40.8,"APROVADO","LANÇADO",""],
+["12/04/2026 15:37","11/04/2026","SSP9","FXR8A95","364400107","Vinicius Emanuel Gomes","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["12/04/2026 15:39","11/04/2026","SSP9","FXR8A95","364624121","Vinicius Emanuel Gomes","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["12/04/2026 17:53","12/04/2026","SSP9","FFW4I31","364735988","Vitor Emanoel de Souza","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["12/04/2026 20:16","11/04/2026","SSP9","FEO2J04","364622210","Adriano Berbert Nunes","PEDÁGIO",36.8,"APROVADO","LANÇADO",""],
+["13/04/2026 16:07","27/03/2026","SSP29","BAM5J76","357855814","LUCA ZONTA FERREIRA","PEDÁGIO",41.6,"APROVADO","LANÇADO",""],
+["13/04/2026 16:09","26/03/2026","SSP29","BAM5J76","357310297","LUCA ZONTA FERREIRA","PEDÁGIO",37.6,"APROVADO","LANÇADO",""],
+["13/04/2026 16:13","31/03/2026","SSP29","BAM5J76","359424297","LUCA ZONTA FERREIRA","PEDÁGIO",41.6,"APROVADO","LANÇADO",""],
+["13/04/2026 16:16","01/04/2026","SSP29","BAM5J76","360233973","LUCA ZONTA FERREIRA","PEDÁGIO",41.6,"APROVADO","LANÇADO",""],
+["13/04/2026 16:18","02/04/2026","SSP29","BAM5J76","360565248","LUCA ZONTA FERREIRA","PEDÁGIO",17.1,"APROVADO","LANÇADO",""],
+["13/04/2026 16:20","02/04/2026","SSP29","BAM5J76","360767744","LUCA ZONTA FERREIRA","PEDÁGIO",24.5,"APROVADO","LANÇADO",""],
+["13/04/2026 16:22","04/04/2026","SSP29","BAM5J76","361275874","LUCA ZONTA FERREIRA","PEDÁGIO",41.6,"APROVADO","LANÇADO",""],
+["13/04/2026 16:24","06/04/2026","SSP29","BAM5J76","361764915","LUCA ZONTA FERREIRA","PEDÁGIO",17.1,"APROVADO","LANÇADO",""],
+["13/04/2026 16:26","06/04/2026","SSP29","BAM5J76","361995432","LUCA ZONTA FERREIRA","PEDÁGIO",24.5,"APROVADO","LANÇADO",""],
+["13/04/2026 16:28","10/04/2026","SSP29","BAM5J76","363930673","LUCA ZONTA FERREIRA","PEDÁGIO",40.5,"APROVADO","LANÇADO",""],
+["13/04/2026 16:30","12/04/2026","SSP29","BAM5J76","364731935","LUCA ZONTA FERREIRA","PEDÁGIO",50.4,"APROVADO","LANÇADO",""],
+["04/04/2026 13:03","03/04/2026","SSP9","FQO6F94","360960930","Ariana Marisa","PEDÁGIO",23.4,"APROVADO","LANÇADO",""],
+["04/04/2026 13:10","03/04/2026","SSP9","FQO6F94","360960930","Ariana Marisa","ERRO KM (TABELA)",63.05,"","",""],
+["04/04/2026 13:17","03/04/2026","SSP9","FQO6F94","361059644","Ariana Marisa","ERRO KM (TABELA)",433.34,"","",""],
+["13/04/2026 20:21","13/04/2026","SSP9","FQO6F94","364970558","Ariana Marisa","PEDÁGIO",9.2,"APROVADO","LANÇADO",""],
+["13/04/2026 20:29","10/04/2026","SSP9","FQO6F94","364233136","Ariana Marisa","PEDÁGIO",9.2,"APROVADO","LANÇADO",""],
+["13/04/2026 20:36","11/04/2026","SSP9","FQO6F94","364466775","Ariana Marisa","ERRO KM (TABELA)",300.94,"","",""],
+["13/04/2026 20:38","13/04/2026","SSP9","FQO6F94","364970558","Ariana Marisa","ERRO KM (TABELA)",300.94,"","",""],
+["29/04/2026 09:06","03/04/2026","SSP9","FQO6F94","360960930","Ariana Marisa","ERRO KM (TABELA)",55,"","",""],
+["13/04/2026 20:27","10/04/2026","SSP9","FQO6F94","363889842","Ariana Marisa","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["13/04/2026 21:30","08/04/2026","SSP38","QWZ5B76","363071710","Bruna Moreira Oliveira","PEDÁGIO",19.4,"APROVADO","LANÇADO",""],
+["13/04/2026 21:33","11/04/2026","SSP38","QWZ5B76","364607335","Bruna Moreira Oliveira","PEDÁGIO",38.8,"APROVADO","LANÇADO",""],
+["14/04/2026 00:36","12/04/2026","SSP9","QUS6C19","364768944","Amós Cristino Vicente","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["14/04/2026 00:37","11/04/2026","SSP9","QUS6C19","364399953","Amós Cristino Vicente","PEDÁGIO",40.8,"APROVADO","LANÇADO",""],
+["14/04/2026 00:38","10/04/2026","SSP9","QUS6C19","364232646","Amós Cristino Vicente","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["14/04/2026 09:22","06/04/2026","SSP29","FRO1G64","362001298","Thiago de Souza Dias","PEDÁGIO",37.6,"APROVADO","LANÇADO",""],
+["14/04/2026 09:26","09/04/2026","SSP29","FRO1G64","363651233","Thiago de Souza Dias","PEDÁGIO",30.2,"APROVADO","LANÇADO",""],
+["14/04/2026 09:28","10/04/2026","SSP29","FRO1G64","364206571","Thiago de Souza Dias","PEDÁGIO",37.6,"APROVADO","LANÇADO",""],
+["14/04/2026 09:30","11/04/2026","SSP29","FRO1G64","364617849","Thiago de Souza Dias","PEDÁGIO",30.2,"APROVADO","LANÇADO",""],
+["14/04/2026 15:23","12/04/2026","SSP9","FAU9I56","364735673","Davyd Matheus Cassiano Soares","PEDÁGIO",40.8,"APROVADO","LANÇADO",""],
+["14/04/2026 15:29","11/04/2026","SSP9","FAU9I56","364627754","Davyd Matheus Cassiano Soares","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["14/04/2026 15:26","10/04/2026","SSP9","FAU9I56","364233654","Davyd Matheus Cassiano Soares","PEDÁGIO",40.8,"APROVADO","LANÇADO",""],
+["14/04/2026 21:55","13/04/2026","SSP29","AWU6J40","365286209","João Vitor Silva Moreira","ERRO KM (TABELA)",58.12,"APROVADO","LANÇADO",""],
+["14/04/2026 21:57","13/04/2026","SSP29","AWU6J40","365286209","João Vitor Silva Moreira","PEDÁGIO",26.2,"APROVADO","LANÇADO",""],
+["14/04/2026 22:52","14/04/2026","SSP9","FFW4I31","365825111","Vitor Emanoel de Souza","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["14/04/2026 22:50","14/04/2026","SSP9","FFW4I31","365592354","Vitor Emanoel de Souza","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["16/04/2026 07:26","12/04/2026","SSP9","QPJ4D96","","Delma da Silva Monaski Ferreira","PEDÁGIO",12.6,"RECUSADO","SEM ID LOGISTICS",""],
+["16/04/2026 07:28","29/03/2026","SSP9","QPJ4D96","","Delma da Silva Monaski Ferreira","PEDÁGIO",12.6,"RECUSADO","SEM ID LOGISTICS",""],
+["16/04/2026 11:28","30/03/2026","SSP38","QST8I85","358878080","Gregory Vonsoski Ribeiro","ERRO KM (TABELA)",339,"","",""],
+["16/04/2026 20:18","12/03/2026","SSP29","EYG0I69","350821647","Antonio Marcos Sérgio Purchio","ERRO KM (TABELA)",86,"APROVADO","LANÇADO",""],
+["16/04/2026 20:19","18/03/2026","SSP29","EYG0I69","353635010","Antonio Marcos Sérgio Purchio","ERRO KM (TABELA)",44,"APROVADO","LANÇADO",""],
+["16/04/2026 20:20","24/03/2026","SSP29","EYG0I69","356272463","Antonio Marcos Sérgio Purchio","ERRO KM (TABELA)",75,"APROVADO","LANÇADO",""],
+["16/04/2026 20:21","25/04/2026","SSP29","EYG0I69","356783582","Antonio Marcos Sérgio Purchio","ERRO KM (TABELA)",59,"APROVADO","LANÇADO",""],
+["16/04/2026 20:22","31/03/2026","SSP29","EYG0I69","359462181","Antonio Marcos Sérgio Purchio","ERRO KM (TABELA)",45,"APROVADO","LANÇADO",""],
+["16/04/2026 20:22","02/04/2026","SSP29","EYG0I69","360469173","Antonio Marcos Sérgio Purchio","ERRO KM (TABELA)",58,"APROVADO","LANÇADO",""],
+["16/04/2026 20:23","08/04/2026","SSP29","EYG0I69","362792179","Antonio Marcos Sérgio Purchio","ERRO KM (TABELA)",40,"APROVADO","LANÇADO",""],
+["16/04/2026 20:25","10/04/2026","SSP29","EYG0I69","364071443","Antonio Marcos Sérgio Purchio","ERRO KM (TABELA)",56,"APROVADO","LANÇADO",""],
+["16/04/2026 20:25","11/04/2026","SSP29","EYG0I69","364452705","Antonio Marcos Sérgio Purchio","ERRO KM (TABELA)",30,"APROVADO","LANÇADO",""],
+["16/04/2026 22:39","16/04/2026","SSP9","UGH6G30","366929558","Maria Aparecida Lopes da Silva","PEDÁGIO",40.8,"APROVADO","LANÇADO",""],
+["17/04/2026 19:28","16/04/2026","SSP29","AWU6J40","366957200","João Vitor Silva Moreira","ERRO KM (TABELA)",47.87,"RECUSADO","RECUSADO",""],
+["17/04/2026 17:47","16/04/2026","SSP29","AWU6J40","366702057","João Vitor Silva Moreira","PEDÁGIO",22.2,"APROVADO","LANÇADO",""],
+["18/04/2026 19:11","17/04/2026","SSP29","EYG0I69","367376864","Antonio Marcos Sérgio Purchio","ERRO KM (TABELA)",47.87,"APROVADO","LANÇADO",""],
+["20/04/2026 16:59","09/04/2026","SSP9","RMX6I50","363676524","Luiz Ventura","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["20/04/2026 16:53","07/04/2026","SSP9","RMX6I50","362527124","Luiz Ventura","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["20/04/2026 16:55","08/04/2026","SSP9","RMX6I50","362819920","Luiz Ventura","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["20/04/2026 16:58","09/04/2026","SSP9","RMX6I50","363358941","Luiz Ventura","PEDÁGIO",31,"APROVADO","LANÇADO",""],
+["20/04/2026 17:00","10/04/2026","SSP9","RMX6I50","363950595","Luiz Ventura","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["20/04/2026 17:01","11/04/2026","SSP9","RMX6I50","364443535","Luiz Ventura","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["20/04/2026 17:02","11/04/2026","SSP9","RMX6I50","364531490","Luiz Ventura","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["20/04/2026 17:04","12/04/2026","SSP9","RMX6I50","364767523","Luiz Ventura","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["20/04/2026 17:05","12/04/2026","SSP9","RMX6I50","364809369","Luiz Ventura","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["20/04/2026 17:09","15/04/2026","SSP9","RMX6I50","366067605","Luiz Ventura","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["20/04/2026 17:09","15/04/2026","SSP9","RMX6I50","366248331","Luiz Ventura","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["20/04/2026 17:11","16/04/2026","SSP9","RMX6I50","366823605","Luiz Ventura","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["20/04/2026 17:12","17/04/2026","SSP9","RMX6I50","367196194","Luiz Ventura","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["20/04/2026 17:12","17/04/2026","SSP9","RMX6I50","367517893","Luiz Ventura","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["20/04/2026 17:13","19/04/2026","SSP9","RMX6I50","368033555","Luiz Ventura","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["21/04/2026 07:08","11/04/2026","SSP9","FUN8D10","364631968","Julian Ronaldo Fernandes Sette","ERRO KM (TABELA)",207.1,"","",""],
+["21/04/2026 08:05","18/04/2026","SSP9","FUN8D10","367697443","Julian Ronaldo Fernandes Sette","ERRO KM (TABELA)",300.94,"","",""],
+["21/04/2026 08:16","03/04/2026","SSP9","FEO2J04","361123764","Adriano Berbert Nunes","ERRO KM (TABELA)",6305,"","",""],
+["21/04/2026 08:18","04/04/2026","SSP9","FEO2J04","361123764","Adriano Berbert Nunes","ERRO KM (TABELA)",41.42,"","",""],
+["21/04/2026 08:20","05/04/2026","SSP9","FEO2J04","361577476","Adriano Berbert Nunes","ERRO KM (TABELA)",74.55,"","",""],
+["22/04/2026 17:46","22/04/2026","SSP9","FUN8D10","369107880","Julian Ronaldo Fernandes Sette","PEDÁGIO",36.6,"APROVADO","LANÇADO",""],
+["22/04/2026 21:14","10/04/2026","SSP36","OYK8I04","3640065143","Jonas de Jesus Jorge","ERRO KM (TABELA)",370.49,"","",""],
+["22/04/2026 21:16","11/04/2026","SSP36","OYK8I04","364542400","Jonas de Jesus Jorge","ERRO KM (TABELA)",378.16,"","",""],
+["23/04/2026 19:13","06/04/2026","SSP29","RNU4A25","","Giovana Regina de Paula Francioli","PEDÁGIO",34.2,"RECUSADO","RECUSADO","SEM ID LOGISTICS"],
+["23/04/2026 19:14","06/04/2026","SSP29","RNU4A25","361913728","Giovana Regina de Paula Francioli","PEDÁGIO",34.2,"APROVADO","LANÇADO",""],
+["23/04/2026 19:16","10/04/2026","SSP29","RNU4A25","","Giovana Regina de Paula Francioli","PEDÁGIO",34.2,"RECUSADO","RECUSADO","SEM ID LOGISTICS"],
+["23/04/2026 19:17","11/04/2026","SSP29","RNU4A25","364080816","Giovana Regina de Paula Francioli","PEDÁGIO",34.2,"APROVADO","LANÇADO",""],
+["25/04/2026 18:18","13/04/2026","SSP9","KPH5F15","364893887","WILSON MAIA DA CRUZ JUNIOR","ERRO KM (TABELA)",565.49,"","",""],
+["25/04/2026 18:20","15/04/2026","SSP9","KPH5F15","366189825","WILSON MAIA DA CRUZ JUNIOR","ERRO KM (TABELA)",563.79,"","",""],
+["25/04/2026 18:21","16/04/2026","SSP9","KPH5F15","366767612","WILSON MAIA DA CRUZ JUNIOR","ERRO KM (TABELA)",563.05,"","",""],
+["25/04/2026 18:22","17/04/2026","SSP9","KPH5F15","367335662","WILSON MAIA DA CRUZ JUNIOR","ERRO KM (TABELA)",624.35,"","",""],
+["25/04/2026 18:24","20/04/2026","SSP9","KPH5F15","368282559","WILSON MAIA DA CRUZ JUNIOR","ERRO KM (TABELA)",564.9,"","",""],
+["25/04/2026 18:26","21/04/2026","SSP9","KPH5F15","368788078","WILSON MAIA DA CRUZ JUNIOR","ERRO KM (TABELA)",558.98,"","",""],
+["25/04/2026 17:54","16/04/2026","SSP9","GDN1A89","366827070","Leandro Luiz Perissoto","ERRO KM (TABELA)",330,"","",""],
+["27/04/2026 20:23","13/04/2026","SSP9","HDE1F29","364989444","Wesley Oliveira","ERRO KM (TABELA)",301.47,"","",""],
+["27/04/2026 20:28","15/04/2026","SSP9","HDE1F29","366395793","Wesley Oliveira","ERRO KM (TABELA)",283.09,"","",""],
+["28/04/2026 09:39","08/04/2026","SSP9","FIS6A41","362771438","Fernanda Barbosa Silva","ERRO KM (TABELA)",337.29,"","",""],
+["28/04/2026 09:41","09/04/2026","SSP9","FIS6A41","363534032","Fernanda Barbosa Silva","ERRO KM (TABELA)",331.39,"","",""],
+["28/04/2026 09:44","10/04/2026","SSP9","FIS6A41","363971021","Fernanda Barbosa Silva","ERRO KM (TABELA)",281.97,"","",""],
+["28/04/2026 09:46","10/04/2026","SSP9","FIS6A41","364230448","Fernanda Barbosa Silva","ERRO KM (TABELA)",226.71,"","",""],
+["28/04/2026 09:48","11/04/2026","SSP9","FIS6A41","364450808","Fernanda Barbosa Silva","ERRO KM (TABELA)",343.78,"","",""],
+["28/04/2026 09:52","13/04/2026","SSP9","FIS6A41","365289380","Fernanda Barbosa Silva","ERRO KM (TABELA)",222.27,"","",""],
+["28/04/2026 09:57","15/04/2026","SSP9","FIS6A41","366248415","Fernanda Barbosa Silva","ERRO KM (TABELA)",329.03,"","",""],
+["28/04/2026 10:00","16/04/2026","SSP9","FIS6A41","366723638","Fernanda Barbosa Silva","ERRO KM (TABELA)",330.8,"","",""],
+["12/05/2026 16:40","22/04/2026","SSP29","PVD7I71","369068113","Edson Bernardo de Oliveira","CONTESTAÇÃO DESCONTOS",55,"APROVADO","LANÇADO",""],
+["12/05/2026 16:43","28/04/2026","SSP29","PVD7I71","371606754","Edson Bernardo de Oliveira","CONTESTAÇÃO DESCONTOS",85.5,"RECUSADO","RECUSADO",""],
+["12/05/2026 16:50","06/05/2026","SSP29","PVD7I71","374987257","Edson Bernardo de Oliveira","PEDÁGIO",25.2,"APROVADO","LANÇADO",""],
+["12/05/2026 16:53","06/05/2026","SSP29","PVD7I71","374987257","Edson Bernardo de Oliveira","ERRO KM (TABELA)",59.87,"RECUSADO","RECUSADO",""],
+["12/05/2026 16:58","05/05/2026","SSP29","PVD7I71","374419991","Edson Bernardo de Oliveira","PEDÁGIO",12.6,"APROVADO","LANÇADO",""],
+["12/05/2026 17:00","05/05/2026","SSP29","PVD7I71","374419991","Edson Bernardo de Oliveira","ERRO KM (TABELA)",59.87,"RECUSADO","RECUSADO",""],
+["12/05/2026 23:14","07/05/2026","SSP27","PYE9E94","375882711","Sidney Inácio de Proença","ROTA FALTANTE (FECHAMENTO)",447,"APROVADO","LANÇADO","LANÇADO COMPLEMENTAR"],
+["12/05/2026 23:08","02/05/2026","SSP27","PYE9E94","374420908","Sidney Inácio de Proença","ROTA FALTANTE (FECHAMENTO)",447,"RECUSADO","RECUSADO","Rota do dia 05/05"],
+["12/05/2026 23:12","06/05/2026","SSP27","PYE9E94","369330634","Sidney Inácio de Proença","ROTA FALTANTE (FECHAMENTO)",412,"RECUSADO","RECUSADO","Rota do dia 22/04"],
+["12/05/2026 23:25","08/05/2026","SSP27","PYE9E94","376497143","Sidney Inácio de Proença","ROTA FALTANTE (FECHAMENTO)",347.84,"APROVADO","LANÇADO","LANÇADO COMPLEMENTAR"],
+["12/05/2026 23:27","09/05/2026","SSP27","PYE9E94","377588786","Sidney Inácio de Proença","ROTA FALTANTE (FECHAMENTO)",412.4,"RECUSADO","RECUSADO",""],
+["12/05/2026 23:30","11/05/2026","SSP27","PYE9E94","377588786","Sidney Inácio de Proença","ROTA FALTANTE (FECHAMENTO)",477.07,"APROVADO","LANÇADO","LANÇADO COMPLEMENTAR"],
+["12/05/2026 23:32","12/05/2026","SSP27","PYE9E94","378171858","Sidney Inácio de Proença","ROTA FALTANTE (FECHAMENTO)",347.84,"APROVADO","LANÇADO","LANÇADO COMPLEMENTAR"],
+["13/05/2026 22:52","09/05/2026","SSP27","DIS6A54","376712778","Petrocceli Borges","PEDÁGIO",31.8,"APROVADO","LANÇADO",""],
+["13/05/2026 22:59","15/04/2026","SSP27","DIS6A54","366414623","Petrocceli Borges","CONTESTAÇÃO DESCONTOS",117.08,"","",""],
+["13/05/2026 22:56","14/04/2026","SSP27","DIS6A54","365840294","Petrocceli Borges","CONTESTAÇÃO DESCONTOS",107.22,"","",""],
+["13/05/2026 23:02","15/04/2026","SSP27","DIS6A54","366967490","Petrocceli Borges","CONTESTAÇÃO DESCONTOS",93.75,"","",""],
+["14/05/2026 10:41","19/03/2026","SSP27","EWD0I94","3296431","Bruno Costa Buzzo","PEDÁGIO",31.8,"RECUSADO","RECUSADO",""],
+["14/05/2026 10:57","01/04/2026","SSP27","EWD0I94","3402244","Bruno Costa Buzzo","PEDÁGIO",31.8,"APROVADO","LANÇADO",""],
+["14/05/2026 11:04","08/04/2026","SSP27","EWD0I94","3455869","Bruno Costa Buzzo","PEDÁGIO",31.8,"APROVADO","LANÇADO",""],
+["14/05/2026 11:10","13/04/2026","SSP27","EWD0I94","365270928","Bruno Costa Buzzo","PEDÁGIO",31.8,"APROVADO","LANÇADO",""],
+["14/05/2026 16:33","11/05/2026","SSP29","EYG0I69","377433197","ANTONIO MARCOS SÉRGIO PURCHIO","ERRO KM (TABELA)",92.67,"APROVADO","LANÇADO",""],
+["14/05/2026 16:34","12/05/2026","SSP29","EYG0I69","377844720","ANTONIO MARCOS SÉRGIO PURCHIO","ERRO KM (TABELA)",149.24,"APROVADO","LANÇADO",""],
+["14/05/2026 19:40","13/05/2026","SSP29","EYG0I69","378582296","Antonio Marcos Sérgio Purchio","ERRO KM (TABELA)",149.24,"APROVADO","LANÇADO",""],
+["15/05/2026 10:58","13/05/2026","SSP29","PVD7I71","378587231","Edson Bernardo de Oliveira","ERRO KM (TABELA)",118.07,"APROVADO","LANÇADO",""],
+["15/05/2026 11:01","14/05/2026","SSP29","PVD7I71","379005152","Edson Bernardo de Oliveira","PEDÁGIO",34.2,"APROVADO","LANÇADO",""],
+["17/05/2026 17:28","13/05/2026","SSP29","PVD7I71","378587231","Edson Bernardo de Oliveira","CONTESTAÇÃO DESCONTOS",75.45,"APROVADO","LANÇADO",""],
+["17/05/2026 17:46","14/05/2026","SSP27","PYE9E94","379330939","Sidney Inácio de Proença","ROTA FALTANTE (FECHAMENTO)",0,"APROVADO","LANÇADO","LANÇADO COMPLEMENTAR"],
+["17/05/2026 17:49","15/05/2026","SSP27","PYE9E94","379928088","Sidney Inácio de Proença","ROTA FALTANTE (FECHAMENTO)",0,"APROVADO","LANÇADO","LANÇADO COMPLEMENTAR"],
+["18/05/2026 09:02","11/05/2026","SSP27","PYE9E94","377588786","Sidney Inácio de Proença","ROTA FALTANTE (FECHAMENTO)",0,"APROVADO","LANÇADO","LANÇADO COMPLEMENTAR"],
+["18/05/2026 11:37","13/05/2026","SSP27","DSY9B52","378688122","Ézio Augusto da Silva","ERRO KM (TABELA)",264.95,"RECUSADO","RECUSADO","DUPLICADO"],
+["13/05/2026 11:57","20/04/2026","SSP27","DSY9B52","368414656","Ézio Augusto da Silva","ERRO KM (TABELA)",361,"","",""],
+["13/05/2026 14:25","23/04/2026","SSP27","DSY9B52","369778242","Ézio Augusto da Silva","ERRO KM (TABELA)",292.33,"","",""],
+["13/05/2026 14:27","24/04/2026","SSP27","DSY9B52","370301527","Ézio Augusto da Silva","ERRO KM (TABELA)",325.41,"","",""],
+["13/05/2026 14:30","25/04/2026","SSP27","DSY9B52","370672142","Ézio Augusto da Silva","ERRO KM (TABELA)",376.09,"","",""],
+["13/05/2026 14:45","27/04/2026","SSP27","DSY9B52","371255291","Ézio Augusto da Silva","ERRO KM (TABELA)",228.56,"","",""],
+["13/05/2026 14:47","28/04/2026","SSP27","DSY9B52","371798218","Ézio Augusto da Silva","ERRO KM (TABELA)",321.93,"","",""],
+["13/05/2026 14:51","29/04/2026","SSP27","DSY9B52","372306894","Ézio Augusto da Silva","ERRO KM (TABELA)",283.82,"","",""],
+["13/05/2026 14:55","30/04/2026","SSP27","DSY9B52","372811678","Ézio Augusto da Silva","ERRO KM (TABELA)",320.97,"","",""],
+["13/05/2026 14:57","01/05/2026","SSP27","DSY9B52","373216740","Ézio Augusto da Silva","ERRO KM (TABELA)",372.99,"","",""],
+["13/05/2026 15:00","02/05/2026","SSP27","DSY9B52","373513253","Ézio Augusto da Silva","ERRO KM (TABELA)",339.42,"","",""],
+["13/05/2026 19:33","21/04/2026","SSP27","DSY9B52","368818745","Ézio Augusto da Silva","ERRO KM (TABELA)",416.54,"RECUSADO","RECUSADO",""],
+["11/05/2026 07:30","09/05/2026","SSP29","SHZ0F89","376888618","Paulo Roberto Baptista","ERRO KM (TABELA)",117.99,"APROVADO","LANÇADO",""],
+["11/05/2026 07:40","05/05/2026","SSP29","SHZ0F89","374606884","Paulo Roberto Baptista","ERRO KM (TABELA)",47.87,"RECUSADO","RECUSADO",""],
+["11/05/2026 07:47","05/05/2026","SSP29","SHZ0F89","374468872","Paulo Roberto Baptista","ERRO KM (TABELA)",31.54,"RECUSADO","RECUSADO",""],
+["13/05/2026 07:42","29/04/2026","SSP29","SHZ0F89","372179123","Paulo Roberto Baptista","CONTESTAÇÃO DESCONTOS",186.89,"APROVADO","LANÇADO",""],
+["03/06/2026 10:07","29/04/2026","SSP29","SHZ0F89","372179123","Paulo Roberto Baptista","CONTESTAÇÃO DESCONTOS",186.89,"DUPLICADO","",""],
+["12/05/2026 09:31","01/05/2026","SSP29","EGW9I55","373220604","William Leal Oliveira","ROTA FALTANTE (FECHAMENTO)",309.01,"APROVADO","LANÇADO",""],
+["11/05/2026 15:40","10/05/2026","SSP9","RMX6I50","377066803","Luiz Ventura","ERRO KM (TABELA)",107,"","",""],
+["18/05/2026 17:37","24/04/2026","SSP9","RMX6I50","370117875","Luiz Ventura","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["18/05/2026 17:31","21/04/2026","SSP9","RMX6I50","368720794","Luiz Ventura","PEDÁGIO",18.4,"APROVADO","LANÇADO",""],
+["11/05/2026 22:15","04/05/2026","SSP29","EYG0I69","374070180","Antonio Marcos Sérgio Purchio","ERRO KM (TABELA)",79.12,"APROVADO","LANÇADO",""],
+["11/05/2026 22:20","06/05/2026","SSP29","EYG0I69","375147683","Antonio Marcos Sérgio Purchio","ERRO KM (TABELA)",31.25,"APROVADO","LANÇADO",""],
+["11/05/2026 22:30","14/04/2026","SSP29","EYG0I69","365597289","Antonio Marcos Sérgio Purchio","CONTESTAÇÃO DESCONTOS",0,"RECUSADO","RECUSADO",""],
+["06/05/2026 09:02","04/05/2026","SSP29","EYG0I69","374070180","Antonio Marcos Sérgio Purchio","ERRO KM (TABELA)",75,"APROVADO","LANÇADO",""],
+["12/05/2026 21:38","07/05/2026","SSP29","GDA7A02","375850413","Everton Leandro Domingos","ROTA FALTANTE (FECHAMENTO)",309.01,"APROVADO","LANÇADO",""],
+["12/05/2026 21:56","08/05/2026","SSP29","GDA7A02","376310642","Everton Leandro Domingos","ROTA FALTANTE (FECHAMENTO)",340.55,"APROVADO","LANÇADO",""],
+["12/05/2026 22:06","05/05/2026","SSP29","GDA7A02","374733507","Everton Leandro Domingos","ROTA FALTANTE (FECHAMENTO)",309.01,"APROVADO","LANÇADO",""],
+["12/05/2026 22:12","06/05/2026","SSP29","GDA7A02","375271744","Everton Leandro Domingos","ROTA FALTANTE (FECHAMENTO)",309.01,"APROVADO","LANÇADO",""],
+["24/05/2026 15:04","22/05/2026","SSP27","RVP3G52","383312861","Guilherme Fernando de Campos Gomes","CONTESTAÇÃO DESCONTOS",0,"APROVADO","LANÇADO","LANÇADO COMPLEMENTAR DE REEMBOLSO"],
+["20/05/2026 22:55","22/04/2026","SSP29","FWK8I98","369065901","Rafael P","ERRO KM (TABELA)",31.54,"APROVADO","LANÇADO",""],
+["26/05/2026 21:03","20/05/2026","SSP29","PVM1I94","381988720","Guilherme Ferreira Mendonça","ROTA FALTANTE (FECHAMENTO)",400.42,"APROVADO","LANÇADO",""],
+["26/05/2026 21:06","21/05/2026","SSP29","PVM1I94","382552297","Guilherme Ferreira Mendonça","ROTA FALTANTE (FECHAMENTO)",388.42,"APROVADO","LANÇADO",""],
+["26/05/2026 21:20","22/05/2026","SSP29","BCC4D19","382985289","Diego Alencar dos Santos","ROTA FALTANTE (FECHAMENTO)",388.42,"APROVADO","LANÇADO",""],
+["29/05/2026 10:45","26/05/2026","SSP29","EGW9I55","384750374","William Leal Oliveira","ROTA FALTANTE (FECHAMENTO)",471.15,"APROVADO","LANÇADO",""],
+["01/06/2026 08:03","31/05/2026","SSP27","BEQ9J22","387108394","Thiago Cancian Silva","PEDÁGIO",31.9,"APROVADO","LANÇADO",""],
+["01/06/2026 08:05","31/05/2026","SSP27","BEQ9J22","387108394","Thiago Cancian Silva","ERRO KM (TABELA)",315.27,"","",""],
+["01/06/2026 11:31","26/05/2026","SSP27","SDD-RTV5B7","384893734","Maykon Shuesser Silva Correa","PEDÁGIO",24.2,"","",""],
+["01/06/2026 11:38","26/05/2026","SSP27","SDD-RTV5B7","384893734","Maykon Shuesser Silva Correa","ERRO KM (TABELA)",72.65,"","",""],
+["01/06/2026 15:33","27/05/2026","SSP27","RNP9J48","385449513","Marivaldo Brisola","PEDÁGIO",31.8,"APROVADO","LANÇADO","LANÇADO COMPLEMENTAR"],
+["01/06/2026 15:43","30/05/2026","SSP27","RNP9J49","386913934","Marivaldo Brisola","PEDÁGIO",24.2,"APROVADO","LANÇADO",""],
+["01/06/2026 17:54","07/05/2026","SSP27","FSD0340","375500301","Paloma Fogaça Gomes","PEDÁGIO",31.8,"APROVADO","LANÇADO",""],
+["01/06/2026 18:02","13/05/2026","SSP27","FSD0340","378357603","Paloma Fogaça Gomes","PEDÁGIO",31.8,"APROVADO","LANÇADO",""],
+["01/06/2026 18:13","25/04/2026","SSP27","FSD0340","370573988","Paloma Fogaça Gomes","ERRO KM (TABELA)",433.49,"","",""],
+["01/06/2026 12:28","19/05/2026","SSP27","DIS6A54","381543919","Petrocceli Borges","PEDÁGIO",28,"APROVADO","LANÇADO",""],
+["01/06/2026 12:32","21/05/2026","SSP27","DIS6A54","382330033","Petrocceli Borges","PEDÁGIO",28,"APROVADO","LANÇADO",""],
+["01/06/2026 12:37","22/05/2026","SSP27","DIS6A54","382938991","Petrocceli Borges","PEDÁGIO",31.8,"APROVADO","LANÇADO",""],
+["01/06/2026 12:46","24/05/2026","SSP27","DIS6A54","383859589","Petrocceli Borges","PEDÁGIO",31.8,"APROVADO","LANÇADO",""],
+["01/06/2026 12:52","26/05/2026","SSP27","DIS6A54","384895792","Petrocceli Borges","PEDÁGIO",31.8,"APROVADO","LANÇADO",""],
+["01/06/2026 12:54","27/05/2026","SSP27","DIS6A54","385446286","Petrocceli Borges","PEDÁGIO",31.8,"APROVADO","LANÇADO",""],
+["01/06/2026 12:56","29/05/2026","SSP27","DIS6A54","386192024","Petrocceli Borges","PEDÁGIO",31.8,"APROVADO","LANÇADO",""],
+["01/06/2026 13:00","29/05/2026","SSP27","DIS6A54","386546868","Petrocceli Borges","PEDÁGIO",31.8,"APROVADO","LANÇADO",""],
+["01/06/2026 15:32","01/06/2026","SSP27","DIS6A54","387312388","Petrocceli Borges","PEDÁGIO",15.9,"APROVADO","LANÇADO",""],
+["02/06/2026 08:04","30/05/2026","SSP29","BZL6E39","386727104","Francisco Samuel Lima Silva","PEDÁGIO",22.2,"APROVADO","LANÇADO",""],
+["02/06/2026 08:06","30/05/2026","SSP29","BZL6E39","386727104","Francisco Samuel Lima Silva","ERRO KM (TABELA)",79.41,"APROVADO","LANÇADO",""],
+["02/06/2026 08:10","26/05/2026","SSP29","FEP9J14","385178277","MOACIR DE BRITO PEREIRA","ERRO KM (TABELA)",155.04,"APROVADO","LANÇADO",""],
+["02/06/2026 08:13","28/05/2026","SSP29","FEP9J14","385978405","MOACIR DE BRITO PEREIRA","ERRO KM (TABELA)",51.61,"APROVADO","LANÇADO",""],
+["03/06/2026 16:14","03/06/2026","SSP29","FEP9J14","388363095","MOACIR DE BRITO PEREIRA","PEDÁGIO",22.2,"APROVADO","",""],
+["05/06/2026 18:18","03/06/2026","SSP29","SHZ0F89","388706718","Paulo Roberto Baptista","ERRO KM (TABELA)",82.74,"APROVADO","",""],
+["05/06/2026 18:21","04/06/2026","SSP29","SHZ0F89","389079622","Paulo Roberto Baptista","ERRO KM (TABELA)",17.61,"APROVADO","",""],
+["03/06/2026 10:10","30/05/2026","SSP29","SHZ0F89","386712481","Paulo Roberto Baptista","PEDÁGIO",41.6,"APROVADO","",""],
+["03/06/2026 10:12","29/05/2026","SSP29","SHZ0F89","386520625","Paulo Roberto Baptista","PEDÁGIO",41.6,"APROVADO","",""],
+["05/06/2026 14:45","04/06/2026","SSP29","PVC1B33","388843540","Marcelo de Brito Pereira","PEDÁGIO",20.2,"APROVADO","",""],
+["05/06/2026 14:48","04/06/2026","SSP29","PVC1B33","388981643","Marcelo de Brito Pereira","PEDÁGIO",22.2,"APROVADO","",""],
+["05/06/2026 17:52","05/06/2026","SSP9","FXR8A95","389331167","Vinicius Emanuel Gomes","PEDÁGIO",18.4,"","",""],
+["05/06/2026 21:17","02/06/2026","SSP29","BZL6E39","387842596","Francisco Samuel Lima Silva","ERRO KM (TABELA)",66.49,"APROVADO","",""],
+["05/06/2026 21:19","02/06/2026","SSP29","BZL6E39","387842596","Francisco Samuel Lima Silva","PEDÁGIO",22.2,"APROVADO","",""],
+["05/06/2026 11:15","01/06/2026","SSP29","EGW9I55","387252055","William Leal Oliveira","ROTA FALTANTE (FECHAMENTO)",465.05,"APROVADO","",""],
+["05/06/2026 11:17","02/06/2026","SSP29","EGW9I55","387825887","William Leal Oliveira","ROTA FALTANTE (FECHAMENTO)",402.75,"APROVADO","",""],
+["05/06/2026 11:20","04/06/2026","SSP29","EGW9I55","389003420","William Leal Oliveira","ROTA FALTANTE (FECHAMENTO)",501.37,"APROVADO","",""],
+["08/06/2026 06:22","07/06/2026","SSP29","PVC1B33","390098885","Marcelo de Brito Pereira","PEDÁGIO",34.2,"","",""],
+["08/06/2026 16:44","07/06/2026","SSP29","FEP9J14","390104562","MOACIR DE BRITO PEREIRA","PEDÁGIO",34.2,"APROVADO","",""],
+["08/06/2026 17:03","05/06/2026","SSP29","PXY8B14","389277771","João Vitor Silva Moreira","ERRO KM (TABELA)",31.54,"APROVADO","",""],
+["08/06/2026 16:58","05/06/2026","SSP29","PXY8B14","389277771","João Vitor Silva Moreira","PEDÁGIO",22.2,"DUPLICADO","",""],
+["09/06/2026 09:35","31/05/2026","SSP29","BAM5J76","387107610","LUCA ZONTA FERREIRA","PEDÁGIO",41.6,"APROVADO","",""],
+["09/06/2026 09:36","04/06/2026","SSP29","BAM5J76","388900233","LUCA ZONTA FERREIRA","PEDÁGIO",37.6,"APROVADO","",""],
+["09/06/2026 09:38","07/06/2026","SSP29","BAM5J76","390103722","LUCA ZONTA FERREIRA","PEDÁGIO",41.6,"APROVADO","",""],
+];
+
+// ════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════
+
+function normalizeStatus(s){
+  if(!s||!s.trim())return'';
+  s=s.trim().toUpperCase();
+  if(s.includes('APROV'))return'APROVADO';
+  if(s.includes('DUPLIC'))return'DUPLICADO';
+  if(s.includes('RECUS'))return'RECUSADO';
+  if(s.includes('INVAL'))return'INVÁLIDO';
+  return s;
+}
+
+function normalizeType(s){
+  if(!s)return'';
+  s=s.trim().toUpperCase();
+  if(s.includes('PEDÁGIO')||s.includes('PEDAGIO'))return'PEDÁGIO';
+  if(s.includes('ERRO')||s.includes('TABELA'))return'ERRO KM (TABELA)';
+  if(s.includes('ROTA')||s.includes('FECHAMENTO'))return'ROTA FALTANTE (FECHAMENTO)';
+  if(s.includes('CONTEST')||s.includes('DESCONTO'))return'CONTESTAÇÃO DESCONTOS';
+  return s;
+}
+
+function parseCsvNum(v){
+  if(!v)return 0;
+  const c=v.toString().replace(/[^\d,.-]/g,'').replace(',','.');
+  const n=parseFloat(c);
+  return isNaN(n)?0:n;
+}
+
+function parseCleanRow(arr){
+  // CSV from Sheets: [ts, date, hub, plate, id, driver, type, value, printUrl, statusOps, statusTL, obs]
+  return {
+    timestamp:arr[0]||'',
+    routeDate:arr[1]||'',
+    hub:arr[2]||'',
+    plate:(arr[3]||'').toUpperCase().trim(),
+    routeId:(arr[4]||'').toString(),
+    driver:(arr[5]||'').trim(),
+    type:normalizeType(arr[6]||''),
+    value:typeof arr[7]==='number'?arr[7]:parseCsvNum(arr[7]),
+    printUrl:arr[8]||'',
+    statusOps:normalizeStatus(arr[9]||''),
+    statusTL:(arr[10]||'').trim().toUpperCase(),
+    obs:(arr[11]||'').trim(),
+  };
+}
+
+function parseEmbeddedRow(arr){
+  // Embedded data: [ts, date, hub, plate, id, driver, type, value, statusOps, statusTL, obs]
+  // (no printUrl field — inject empty string at index 8 to align with parseCleanRow)
+  return parseCleanRow([...arr.slice(0,8), '', ...arr.slice(8)]);
+}
+
+// ════════════════════════════════════════════
+// GOOGLE SHEETS FETCH
+// ════════════════════════════════════════════
+
+async function fetchSheets(){
+  if(!CFG.sheetId)return null;
+  const sheet=encodeURIComponent(CFG.sheetName||'Sheet1');
+  const url=`https://docs.google.com/spreadsheets/d/${CFG.sheetId}/gviz/tq?tqx=out:csv&sheet=${sheet}`;
+  try{
+    const r=await fetch(url);
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const csv=await r.text();
+    return parseCsv(csv);
+  }catch(e){
+    console.warn('Sheets error:',e);
+    return null;
+  }
+}
+
+function parseCsv(csv){
+  const lines=csv.replace(/\r/g,'').split('\n').filter(Boolean);
+  const out=[];
+  for(let i=1;i<lines.length;i++){
+    const cols=parseCsvLine(lines[i]);
+    if(cols.length<6)continue;
+    const driver=(cols[5]||'').replace(/^"|"$/g,'').trim();
+    if(!driver||driver.length<2)continue;
+    out.push(parseCleanRow(cols.map(c=>(c||'').replace(/^"|"$/g,'').trim())));
+  }
+  return out;
+}
+
+function parseCsvLine(line){
+  const r=[];let cur='';let q=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){q=!q;}
+    else if(c===','&&!q){r.push(cur);cur='';}
+    else cur+=c;
+  }
+  r.push(cur);return r;
+}
+
+// ════════════════════════════════════════════
+// LOAD DATA
+// ════════════════════════════════════════════
+
+async function loadData(){
+  document.getElementById('tblLoading').style.display='block';
+  document.getElementById('mainTable').style.display='none';
+
+  let data=null;
+  if(CFG.sheetId){
+    data=await fetchSheets();
+  }
+
+  if(data&&data.length>0){
+    document.getElementById('srcLbl').textContent=`Google Sheets · ${CFG.sheetId.substring(0,20)}...  →  Aba: "${CFG.sheetName}"`;
+    document.getElementById('srcStatus').textContent=`⬤ ${data.length} registros ao vivo`;
+    document.getElementById('srcStatus').style.color='var(--green)';
+  } else {
+    data=EMBEDDED_RAW.map(parseEmbeddedRow).filter(r=>r.driver&&r.driver.length>1);
+    document.getElementById('srcLbl').textContent=`Dados embutidos (${data.length} registros) · Configure Google Sheets em ⚙ para dados em tempo real`;
+    document.getElementById('srcStatus').textContent='⬤ Local';
+    document.getElementById('srcStatus').style.color='var(--yellow)';
+  }
+
+  allData=data;
+  filteredData=[...allData];
+
+  // populate HUB filter
+  const hubs=[...new Set(allData.map(d=>d.hub).filter(Boolean))].sort();
+  const sel=document.getElementById('sHub');
+  sel.innerHTML='<option value="">Todos HUBs</option>';
+  hubs.forEach(h=>{const o=document.createElement('option');o.value=h;o.textContent=h;sel.appendChild(o);});
+
+  document.getElementById('upd').textContent=new Date().toLocaleString('pt-BR');
+
+  renderAll();
+
+  document.getElementById('tblLoading').style.display='none';
+  document.getElementById('mainTable').style.display='table';
+}
+
+// ════════════════════════════════════════════
+// RENDER ALL
+// ════════════════════════════════════════════
+
+function renderAll(){
+  renderKPIs();
+  renderCharts();
+  renderTable();
+  renderDriverCard();
+}
+
+// ─── KPIs ───
+function renderKPIs(){
+  const d=filteredData;
+  const N=d.length;
+  const aprov=d.filter(r=>r.statusOps==='APROVADO').length;
+  const recus=d.filter(r=>r.statusOps==='RECUSADO'||r.statusOps==='DUPLICADO').length;
+  const pend=d.filter(r=>!r.statusOps).length;
+  const valorAprov=d.filter(r=>r.statusOps==='APROVADO').reduce((s,r)=>s+r.value,0);
+  const compl=d.filter(r=>r.statusTL&&r.statusTL.includes('LANÇADO')).length;
+
+  set('kTotal',N.toLocaleString('pt-BR'));
+  set('kAprov',aprov.toLocaleString('pt-BR'));
+  set('kAprovPct',N>0?`▲ ${((aprov/N)*100).toFixed(1)}% do total`:'');
+  set('kRecus',recus.toLocaleString('pt-BR'));
+  set('kRecusPct',N>0?`▼ ${((recus/N)*100).toFixed(1)}% do total`:'');
+  set('kPend',pend.toLocaleString('pt-BR'));
+  set('kValor','R$ '+valorAprov.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  set('kCompl',compl.toLocaleString('pt-BR'));
+}
+
+function set(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
+
+// ─── CHARTS ───
+function renderCharts(){
+  const d=filteredData;
+
+  // Status Donut
+  const sCounts={
+    'Aprovado':d.filter(r=>r.statusOps==='APROVADO').length,
+    'Recusado':d.filter(r=>r.statusOps==='RECUSADO').length,
+    'Duplicado':d.filter(r=>r.statusOps==='DUPLICADO').length,
+    'Inválido':d.filter(r=>r.statusOps==='INVÁLIDO').length,
+    'Pendente':d.filter(r=>!r.statusOps).length,
+  };
+  mkChart('cStatus','doughnut',
+    Object.keys(sCounts),
+    [{data:Object.values(sCounts),backgroundColor:['#00d48a','#f44336','#ffc107','#b060ff','#ff7a00'],borderWidth:2,borderColor:'#122540'}],
+    {cutout:'64%',plugins:{legend:{position:'right',labels:{color:'#7a9bbf',font:{size:11},padding:10}}}}
+  );
+
+  // Types Bar
+  const tMap={};
+  d.forEach(r=>{const t=r.type||'Outro';tMap[t]=(tMap[t]||0)+1;});
+  const tLabels=Object.keys(tMap).map(t=>t==='PEDÁGIO'?'Pedágio':t==='ERRO KM (TABELA)'?'Erro KM':t==='ROTA FALTANTE (FECHAMENTO)'?'Rota Faltante':t==='CONTESTAÇÃO DESCONTOS'?'Contestação':t);
+  mkChart('cTypes','bar',
+    tLabels,
+    [{data:Object.values(tMap),backgroundColor:['#1b8cf4','#ff7a00','#b060ff','#ffc107','#00d48a'],borderRadius:5,borderSkipped:false}],
+    {plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7a9bbf',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#7a9bbf',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}}
+  );
+
+  // Top Drivers Horizontal Bar
+  const dv={};
+  d.filter(r=>r.statusOps==='APROVADO'&&r.value>0).forEach(r=>{
+    const n=r.driver.split(' ').slice(0,2).join(' ');
+    dv[n]=(dv[n]||0)+r.value;
+  });
+  const top=Object.entries(dv).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  mkChart('cDrivers','bar',
+    top.map(([k])=>k),
+    [{data:top.map(([,v])=>v),backgroundColor:'rgba(27,140,244,.55)',borderColor:'#1b8cf4',borderWidth:1,borderRadius:4,borderSkipped:false}],
+    {indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'R$ '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:2})}}},scales:{x:{ticks:{color:'#7a9bbf',font:{size:10},callback:v=>'R$'+v.toLocaleString('pt-BR')},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#7a9bbf',font:{size:10}},grid:{display:false}}}}
+  );
+}
+
+function mkChart(id,type,labels,datasets,opts){
+  if(charts[id]){charts[id].destroy();}
+  const ctx=document.getElementById(id);
+  if(!ctx)return;
+  charts[id]=new Chart(ctx,{
+    type,
+    data:{labels,datasets},
+    options:{responsive:true,maintainAspectRatio:false,...opts}
+  });
+}
+
+// ─── TABLE ───
+function renderTable(){
+  const tbody=document.getElementById('tBody');
+  set('tCount',filteredData.length.toLocaleString('pt-BR')+' registros');
+
+  const sorted=[...filteredData].sort((a,b)=>{
+    const dir=sortCfg.dir==='asc'?1:-1;
+    if(sortCfg.field==='value')return(a.value-b.value)*dir;
+    const av=a[sortCfg.field]||'';
+    const bv=b[sortCfg.field]||'';
+    return av.toString().localeCompare(bv.toString())*dir;
+  });
+
+  tbody.innerHTML=sorted.map(r=>{
+    const val=r.value>0?`<span class="val-green">R$ ${r.value.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>`:'<span class="val-gray">—</span>';
+    const print=r.printUrl&&r.printUrl.startsWith('http')?`<a class="link-btn" href="${r.printUrl}" target="_blank">📎 Ver</a>`:'<span class="val-gray">—</span>';
+    return`<tr>
+      <td style="color:var(--t2);font-size:11px">${r.timestamp}</td>
+      <td>${r.routeDate||'—'}</td>
+      <td><span style="background:var(--blue-dim);color:#60b8ff;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600">${r.hub||'—'}</span></td>
+      <td><b>${r.plate||'—'}</b></td>
+      <td style="color:var(--t2);font-size:11px">${r.routeId||'—'}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis">${r.driver||'—'}</td>
+      <td>${typBadge(r.type)}</td>
+      <td>${val}</td>
+      <td>${stsBadge(r.statusOps)}</td>
+      <td>${tlBadge(r.statusTL)}</td>
+      <td style="color:var(--t2);font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis">${r.obs||'—'}</td>
+      <td>${print}</td>
+    </tr>`;
+  }).join('');
+}
+
+function stsBadge(s){
+  if(!s)return'<span class="badge b-pend">⏳ Pendente</span>';
+  if(s==='APROVADO')return'<span class="badge b-aprov">✓ Aprovado</span>';
+  if(s==='RECUSADO')return'<span class="badge b-recus">✗ Recusado</span>';
+  if(s==='DUPLICADO')return'<span class="badge b-dupli">⚠ Duplicado</span>';
+  if(s==='INVÁLIDO')return'<span class="badge b-inval">⛔ Inválido</span>';
+  return`<span class="badge b-pend">${s}</span>`;
+}
+
+function tlBadge(s){
+  if(!s||!s.trim())return'<span style="color:var(--t3)">—</span>';
+  if(s.includes('LANÇADO')||s.includes('LANCADO'))return'<span class="badge b-lanc">🔵 Lançado</span>';
+  if(s.includes('RECUSADO'))return'<span class="badge b-recus">✗ Recusado</span>';
+  return`<span style="color:var(--t2);font-size:11px">${s}</span>`;
+}
+
+function typBadge(t){
+  if(!t)return'—';
+  if(t==='PEDÁGIO')return'<span class="typ t-pedagio">🛣️ Pedágio</span>';
+  if(t==='ERRO KM (TABELA)')return'<span class="typ t-errrkm">📏 Erro KM</span>';
+  if(t==='ROTA FALTANTE (FECHAMENTO)')return'<span class="typ t-rota">📦 Rota Faltante</span>';
+  if(t==='CONTESTAÇÃO DESCONTOS')return'<span class="typ t-contest">💬 Contestação</span>';
+  return`<span class="typ" style="background:var(--blue-dim);color:var(--t1)">${t}</span>`;
+}
+
+// ─── DRIVER SUMMARY CARD ───
+function renderDriverCard(){
+  const plate=document.getElementById('sPlate').value.trim();
+  const driver=document.getElementById('sDriver').value.trim();
+  const card=document.getElementById('driverCard');
+  if(!plate&&!driver){card.classList.remove('show');return;}
+
+  const d=filteredData;
+  const aprov=d.filter(r=>r.statusOps==='APROVADO').length;
+  const recus=d.filter(r=>r.statusOps==='RECUSADO').length;
+  const dupli=d.filter(r=>r.statusOps==='DUPLICADO').length;
+  const pend=d.filter(r=>!r.statusOps).length;
+  const vAprov=d.filter(r=>r.statusOps==='APROVADO').reduce((s,r)=>s+r.value,0);
+  const vPend=d.filter(r=>!r.statusOps).reduce((s,r)=>s+r.value,0);
+  const compl=d.filter(r=>r.statusTL&&r.statusTL.includes('LANÇADO')).length;
+
+  document.getElementById('driverCardTitle').textContent=plate?`Placa: ${plate.toUpperCase()}`:`Motorista: ${driver}`;
+  document.getElementById('driverStats').innerHTML=[
+    {v:d.length,l:'Total Tratativas',c:'var(--blue)'},
+    {v:aprov,l:'Aprovadas',c:'var(--green)'},
+    {v:recus,l:'Recusadas',c:'var(--red)'},
+    {v:dupli,l:'Duplicadas',c:'var(--yellow)'},
+    {v:pend,l:'Pendentes',c:'var(--orange)'},
+    {v:'R$ '+vAprov.toLocaleString('pt-BR',{minimumFractionDigits:2}),l:'Valor Aprovado',c:'var(--green)'},
+    {v:'R$ '+vPend.toLocaleString('pt-BR',{minimumFractionDigits:2}),l:'Valor Pendente',c:'var(--orange)'},
+    {v:compl,l:'Lançados TL',c:'var(--blue)'},
+  ].map(s=>`<div class="dstat"><div class="dstat-val" style="color:${s.c}">${s.v}</div><div class="dstat-lbl">${s.l}</div></div>`).join('');
+  card.classList.add('show');
+}
+
+// ════════════════════════════════════════════
+// FILTERS & SORT
+// ════════════════════════════════════════════
+
+function applyFilters(){
+  const plate=document.getElementById('sPlate').value.trim().toUpperCase();
+  const driver=document.getElementById('sDriver').value.trim().toLowerCase();
+  const status=document.getElementById('sStatus').value;
+  const type=document.getElementById('sType').value;
+  const hub=document.getElementById('sHub').value;
+
+  filteredData=allData.filter(r=>{
+    if(plate&&!r.plate.includes(plate))return false;
+    if(driver&&!r.driver.toLowerCase().includes(driver))return false;
+    if(status==='PENDENTE'){if(r.statusOps)return false;}
+    else if(status&&r.statusOps!==status)return false;
+    if(type&&r.type!==type)return false;
+    if(hub&&r.hub!==hub)return false;
+    return true;
+  });
+
+  renderAll();
+}
+
+function clearFilters(){
+  ['sPlate','sDriver'].forEach(id=>document.getElementById(id).value='');
+  ['sStatus','sType','sHub'].forEach(id=>document.getElementById(id).value='');
+  filteredData=[...allData];
+  renderAll();
+}
+
+function doSort(field){
+  if(sortCfg.field===field)sortCfg.dir=sortCfg.dir==='asc'?'desc':'asc';
+  else{sortCfg.field=field;sortCfg.dir='desc';}
+  renderTable();
+}
+
+// ════════════════════════════════════════════
+// CONFIG MODAL
+// ════════════════════════════════════════════
+
+function showCfg(){
+  document.getElementById('cfgId').value=CFG.sheetId;
+  document.getElementById('cfgSheet').value=CFG.sheetName;
+  document.getElementById('cfgInterval').value=CFG.interval;
+  document.getElementById('cfgOverlay').classList.add('show');
+}
+function closeCfg(){document.getElementById('cfgOverlay').classList.remove('show');}
+function saveCfg(){
+  CFG.sheetId=document.getElementById('cfgId').value.trim();
+  CFG.sheetName=document.getElementById('cfgSheet').value.trim()||'Respostas ao formulário 1';
+  CFG.interval=parseInt(document.getElementById('cfgInterval').value)||60;
+  localStorage.setItem('sheetId',CFG.sheetId);
+  localStorage.setItem('sheetName',CFG.sheetName);
+  localStorage.setItem('interval',CFG.interval);
+  closeCfg();
+  startAutoRefresh();
+  loadData();
+}
+
+// ════════════════════════════════════════════
+// AUTO-REFRESH
+// ════════════════════════════════════════════
+
+function startAutoRefresh(){
+  if(autoTimer)clearInterval(autoTimer);
+  if(CFG.sheetId&&CFG.interval>0){
+    autoTimer=setInterval(loadData,CFG.interval*1000);
+  }
+}
+
+function refreshData(){
+  loadData();
+}
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+
+loadData();
+startAutoRefresh();
+</script>
+</body>
+</html>
