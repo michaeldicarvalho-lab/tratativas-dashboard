@@ -298,7 +298,8 @@ td{padding:9px 14px;white-space:nowrap}
   <div class="header-actions">
     <span class="last-upd"><span class="live-dot"></span> &nbsp;Atualizado: <b id="upd">—</b></span>
     <button class="btn btn-outline" onclick="refreshData()">↻ Atualizar</button>
-    <button class="btn btn-primary" onclick="showCfg()">⚙ Configurar Sheets</button>
+    <button class="btn btn-primary" onclick="showImp()">📋 Importar Planilha</button>
+    <button class="btn btn-outline" onclick="showCfg()">⚙ Sheets</button>
   </div>
 </header>
 
@@ -485,6 +486,33 @@ td{padding:9px 14px;white-space:nowrap}
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeCfg()">Cancelar</button>
       <button class="btn btn-primary" onclick="saveCfg()">Salvar e Conectar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════ IMPORT MODAL ════════════════════════════ -->
+<div class="overlay" id="impOverlay">
+  <div class="modal" style="width:640px">
+    <h3>📋 Importar dados da planilha</h3>
+    <div class="hint">
+      <b>Como espelhar a planilha (leva 10 segundos):</b><br>
+      1. Abra a planilha e clique numa célula qualquer da aba <b>Form_Responses2</b>.<br>
+      2. Selecione tudo com <b>Ctrl+A</b> (ou arraste para selecionar as linhas).<br>
+      3. Copie com <b>Ctrl+C</b>.<br>
+      4. Clique na caixa abaixo e cole com <b>Ctrl+V</b>.<br>
+      5. Clique em <b>Importar</b>. Pode colar com ou sem a linha de títulos — o sistema entende sozinho.
+    </div>
+    <div class="fg">
+      <label>Cole aqui os dados copiados</label>
+      <textarea id="impText" rows="9" placeholder="Cole o conteúdo da planilha aqui (Ctrl+V)…"
+        style="width:100%;background:var(--bg1);border:1px solid var(--border);color:var(--t1);padding:10px 12px;border-radius:7px;font-size:12px;font-family:monospace;resize:vertical"></textarea>
+    </div>
+    <div class="modal-actions" style="justify-content:space-between">
+      <button class="btn btn-outline" onclick="clearImported()">🗑 Limpar importação</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline" onclick="closeImp()">Cancelar</button>
+        <button class="btn btn-primary" onclick="doImport()">Importar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -911,20 +939,28 @@ async function loadData(){
   document.getElementById('mainTable').style.display='none';
 
   let data=null;
-  if(CFG.sheetId){
-    data=await fetchSheets();
-  }
+  const imp=loadImported();
 
-  if(data&&data.length>0){
-    document.getElementById('srcLbl').textContent=`Google Sheets · ${CFG.sheetId.substring(0,20)}...  →  Aba: "${CFG.sheetName}"`;
-    document.getElementById('srcStatus').textContent=`⬤ ${data.length} registros ao vivo`;
+  if(imp && imp.rows && imp.rows.length){
+    // 1) Dados importados manualmente (colados da planilha) — prioridade máxima
+    data=imp.rows.map(parseEmbeddedRow).filter(r=>r.driver&&r.driver.length>1);
+    document.getElementById('srcLbl').textContent=`📋 Importado da planilha · ${data.length} registros · ${imp.at}`;
+    document.getElementById('srcStatus').textContent='⬤ Importado';
     document.getElementById('srcStatus').style.color='var(--green)';
   } else {
-    data=EMBEDDED_RAW.map(parseEmbeddedRow).filter(r=>r.driver&&r.driver.length>1);
-    const motivo = (CFG.sheetId && lastFetchError) ? ` · ⚠ falha ao conectar: ${lastFetchError}` : '';
-    document.getElementById('srcLbl').textContent=`Dados embutidos (${data.length} registros)${motivo}`;
-    document.getElementById('srcStatus').textContent='⬤ Local';
-    document.getElementById('srcStatus').style.color='var(--yellow)';
+    // 2) Tentativa ao vivo (caso esteja configurada e o navegador permita)
+    if(CFG.sheetId||DEFAULT_CSV_URL){ data=await fetchSheets(); }
+    if(data&&data.length>0){
+      document.getElementById('srcLbl').textContent=`Google Sheets ao vivo · ${data.length} registros`;
+      document.getElementById('srcStatus').textContent=`⬤ ${data.length} ao vivo`;
+      document.getElementById('srcStatus').style.color='var(--green)';
+    } else {
+      // 3) Base local embutida
+      data=EMBEDDED_RAW.map(parseEmbeddedRow).filter(r=>r.driver&&r.driver.length>1);
+      document.getElementById('srcLbl').textContent=`Base local (${data.length} registros) · clique em 📋 Importar Planilha para espelhar os dados atuais`;
+      document.getElementById('srcStatus').textContent='⬤ Local';
+      document.getElementById('srcStatus').style.color='var(--yellow)';
+    }
   }
 
   allData=data;
@@ -1218,6 +1254,101 @@ function exportCsv(){
   document.body.appendChild(a); a.click();
   document.body.removeChild(a); URL.revokeObjectURL(url);
 }
+
+// ════════════════════════════════════════════
+// IMPORTAR DADOS (colar da planilha) — 100% offline
+// ════════════════════════════════════════════
+
+// Parser que respeita aspas (lida com células que têm vírgula, tab ou quebra de linha)
+function parseDelimited(text, delim){
+  const rows=[]; let row=[]; let cur=''; let q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; }
+      else cur+=c;
+    } else {
+      if(c==='"') q=true;
+      else if(c===delim){ row.push(cur); cur=''; }
+      else if(c==='\n'){ row.push(cur); rows.push(row); row=[]; cur=''; }
+      else if(c==='\r'){ /* ignora */ }
+      else cur+=c;
+    }
+  }
+  if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+  return rows;
+}
+
+// Converte uma linha de células no formato [12 campos] usado pelo dashboard
+function cellsToRow(cells){
+  const ts=(cells[0]||'').trim();
+  if(!/^\d{2}\/\d{2}\/\d{4}/.test(ts)) return null;       // pula cabeçalho/linhas sem data
+  const drv=(cells[5]||'').trim();
+  if(!drv||drv.length<2) return null;
+  const purl=((cells[8]||'').trim().toLowerCase().startsWith('http'))?cells[8].trim():'';
+  return [
+    ts,
+    (cells[1]||'').trim(),
+    (cells[2]||'').trim(),
+    (cells[3]||'').toUpperCase().trim(),
+    (cells[4]||'').toString().trim(),
+    drv,
+    normalizeType(cells[6]||''),
+    parseCsvNum(cells[7]||''),
+    purl,
+    normalizeStatus(cells[9]||''),
+    (cells[10]||'').toUpperCase().trim(),
+    (cells[11]||'').trim()
+  ];
+}
+
+function doImport(){
+  const raw=document.getElementById('impText').value;
+  if(!raw.trim()){ alert('Cole os dados da planilha primeiro.'); return; }
+  const delim = raw.indexOf('\t')>=0 ? '\t' : ',';
+  const matrix=parseDelimited(raw, delim);
+  const seen=new Set(); const out=[];
+  matrix.forEach(cells=>{
+    const r=cellsToRow(cells);
+    if(!r) return;
+    const key=r[0]+'|'+r[4]+'|'+r[6];        // timestamp | id rota | tipo
+    if(seen.has(key)) return; seen.add(key);
+    out.push(r);
+  });
+  if(!out.length){
+    alert('Não encontrei linhas válidas.\n\nDica: copie as linhas de dados da planilha (a 1ª coluna precisa ter a data/hora, ex.: 15/04/2026 10:30:45).');
+    return;
+  }
+  out.sort((a,b)=> a[0]<b[0]?1:-1);
+  const at=new Date().toLocaleString('pt-BR');
+  try{
+    localStorage.setItem('importedData', JSON.stringify(out));
+    localStorage.setItem('importedAt', at);
+  }catch(e){ alert('Importado, mas não consegui salvar no navegador (base muito grande). Os dados valem só nesta sessão.'); }
+  document.getElementById('impText').value='';
+  closeImp();
+  loadData();
+  alert(`✅ ${out.length} registros importados e espelhados no dashboard.`);
+}
+
+function loadImported(){
+  try{
+    const s=localStorage.getItem('importedData');
+    if(!s) return null;
+    return { rows: JSON.parse(s), at: localStorage.getItem('importedAt')||'' };
+  }catch(e){ return null; }
+}
+
+function clearImported(){
+  if(!confirm('Remover os dados importados e voltar para a base local?')) return;
+  localStorage.removeItem('importedData');
+  localStorage.removeItem('importedAt');
+  closeImp();
+  loadData();
+}
+
+function showImp(){ document.getElementById('impOverlay').classList.add('show'); setTimeout(()=>document.getElementById('impText').focus(),50); }
+function closeImp(){ document.getElementById('impOverlay').classList.remove('show'); }
 
 // ════════════════════════════════════════════
 // CONFIG MODAL
