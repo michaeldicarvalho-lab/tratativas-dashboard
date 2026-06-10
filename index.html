@@ -504,7 +504,7 @@ const DEFAULT_CSV_URL    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9
 
 // Limpa config antiga do navegador quando o código embutido muda,
 // evitando que um nome de aba salvo errado sobreponha o padrão correto.
-const CFG_VERSION = '2026-06-10b';
+const CFG_VERSION = '2026-06-10c';
 if(localStorage.getItem('cfgVersion') !== CFG_VERSION){
   ['sheetId','sheetName','interval'].forEach(k=>localStorage.removeItem(k));
   localStorage.setItem('cfgVersion', CFG_VERSION);
@@ -843,31 +843,39 @@ function parseBrDate(s){
 // ════════════════════════════════════════════
 
 let lastFetchError = '';
-async function fetchSheets(){
-  // Resolve a fonte: 1) link completo colado pelo usuário; 2) link publicado
-  // embutido; 3) fallback gviz montado a partir do ID + aba.
-  let url='';
+function resolveSourceUrl(){
   const id=(CFG.sheetId||'').trim();
-  if(/^https?:\/\//i.test(id))      url=id;
-  else if(DEFAULT_CSV_URL)          url=DEFAULT_CSV_URL;
-  else if(id)                       url=`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(CFG.sheetName||'Sheet1')}`;
-  else return null;
-  try{
-    const r=await fetch(url);
-    if(!r.ok)throw new Error('HTTP '+r.status+' (planilha não está pública?)');
-    const csv=await r.text();
-    if(/^\s*<(!doctype|html)/i.test(csv))
-      throw new Error('a planilha não está pública ou a aba "'+CFG.sheetName+'" não existe');
-    const parsed=parseCsv(csv);
-    if(!parsed.length)
-      throw new Error('aba "'+CFG.sheetName+'" sem linhas válidas');
-    lastFetchError='';
-    return parsed;
-  }catch(e){
-    lastFetchError=(e&&e.message)?e.message:'falha de conexão';
-    console.warn('Sheets error:',e);
-    return null;
+  if(/^https?:\/\//i.test(id)) return id;          // link completo colado
+  if(DEFAULT_CSV_URL)          return DEFAULT_CSV_URL; // link publicado embutido
+  if(id) return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(CFG.sheetName||'Sheet1')}`;
+  return '';
+}
+async function fetchSheets(){
+  const src=resolveSourceUrl();
+  if(!src)return null;
+  // 1ª tentativa: direta. Se o navegador bloquear (CORS), passa por um relé.
+  const attempts=[
+    src,
+    'https://api.allorigins.win/raw?url='+encodeURIComponent(src),
+    'https://api.codetabs.com/v1/proxy/?quest='+encodeURIComponent(src)
+  ];
+  let lastErr='';
+  for(const u of attempts){
+    try{
+      const r=await fetch(u);
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const csv=await r.text();
+      if(/^\s*<(!doctype|html)/i.test(csv))
+        throw new Error('resposta não-CSV (planilha não publicada?)');
+      const parsed=parseCsv(csv);
+      if(!parsed.length)throw new Error('CSV sem linhas válidas');
+      lastFetchError='';
+      return parsed;
+    }catch(e){ lastErr=(e&&e.message)?e.message:'falha'; }
   }
+  lastFetchError=lastErr||'falha de conexão';
+  console.warn('Sheets error:',lastErr);
+  return null;
 }
 
 function parseCsv(csv){
