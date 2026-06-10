@@ -105,6 +105,22 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg0);color:var
 .inp-sm{min-width:160px;flex:0 0 auto}
 .inp-md{min-width:200px;flex:1 1 200px;max-width:260px}
 
+/* date range */
+.date-group{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.date-sep{font-size:11px;color:var(--t3)}
+.inp-date{
+  min-width:138px;color-scheme:dark;
+  font-size:11px;padding:6px 10px;
+}
+.inp-date::-webkit-calendar-picker-indicator{filter:invert(.6);cursor:pointer}
+
+/* export button */
+.btn-export{
+  background:var(--green-dim);color:var(--green);
+  border:1px solid rgba(0,212,138,.3);margin-left:auto;
+}
+.btn-export:hover{background:rgba(0,212,138,.18);color:#5ff0bb}
+
 /* ─── DRIVER SUMMARY ─── */
 .driver-card{
   margin:12px 24px;
@@ -154,6 +170,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg0);color:var
   display:grid;grid-template-columns:1fr 1fr 1fr;
   gap:12px;padding:6px 24px;
 }
+.charts-row-2{grid-template-columns:2fr 1fr}
+@media(max-width:1100px){.charts-row-2{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.charts-row-2{grid-template-columns:1fr}}
 .chart-card{
   background:var(--bg2);border:1px solid var(--border);
   border-radius:12px;padding:16px;
@@ -312,7 +331,13 @@ td{padding:9px 14px;white-space:nowrap}
   <select class="inp inp-sm" id="sHub" onchange="applyFilters()">
     <option value="">Todos HUBs</option>
   </select>
+  <div class="date-group">
+    <input class="inp inp-date" id="sDateFrom" type="date" title="Data da rota — de" onchange="applyFilters()">
+    <span class="date-sep">até</span>
+    <input class="inp inp-date" id="sDateTo" type="date" title="Data da rota — até" onchange="applyFilters()">
+  </div>
   <button class="btn btn-outline" onclick="clearFilters()">✕ Limpar</button>
+  <button class="btn btn-export" onclick="exportCsv()">⬇ Exportar CSV</button>
 </div>
 
 <!-- ════════════════════════════ DRIVER CARD ════════════════════════════ -->
@@ -350,6 +375,11 @@ td{padding:9px 14px;white-space:nowrap}
     <div class="kpi-val" id="kValor">—</div>
     <div class="kpi-lbl">Valor Total Aprovado</div>
   </div>
+  <div class="kpi yellow">
+    <div class="kpi-ico">🕓</div>
+    <div class="kpi-val" id="kValorPend">—</div>
+    <div class="kpi-lbl">Valor Pendente (em análise)</div>
+  </div>
   <div class="kpi orange">
     <div class="kpi-ico">🔵</div>
     <div class="kpi-val" id="kCompl">—</div>
@@ -370,6 +400,18 @@ td{padding:9px 14px;white-space:nowrap}
   <div class="chart-card">
     <div class="card-title">Top Motoristas · Valor Aprovado (R$)</div>
     <div class="chart-wrap"><canvas id="cDrivers"></canvas></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════ CHARTS · LINHA 2 ════════════════════════════ -->
+<div class="charts-row charts-row-2">
+  <div class="chart-card chart-wide">
+    <div class="card-title">Evolução · Tratativas por Data de Rota</div>
+    <div class="chart-wrap"><canvas id="cTimeline"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="card-title">Tratativas por HUB</div>
+    <div class="chart-wrap"><canvas id="cHubs"></canvas></div>
   </div>
 </div>
 
@@ -759,9 +801,20 @@ function parseCleanRow(arr){
 }
 
 function parseEmbeddedRow(arr){
-  // Embedded data: [ts, date, hub, plate, id, driver, type, value, statusOps, statusTL, obs]
-  // (no printUrl field — inject empty string at index 8 to align with parseCleanRow)
+  // Aceita os dois formatos:
+  //  • 12 campos (novo): [ts,date,hub,plate,id,driver,type,value,printUrl,statusOps,statusTL,obs]
+  //  • 11 campos (legado, sem printUrl): injeta '' no índice 8 para alinhar
+  if(arr.length>=12) return parseCleanRow(arr);
   return parseCleanRow([...arr.slice(0,8), '', ...arr.slice(8)]);
+}
+
+// Converte "DD/MM/AAAA" (com ou sem " HH:MM") em objeto Date; null se inválido
+function parseBrDate(s){
+  if(!s) return null;
+  const m=s.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if(!m) return null;
+  const d=new Date(+m[3], +m[2]-1, +m[1]);
+  return isNaN(d.getTime())?null:d;
 }
 
 // ════════════════════════════════════════════
@@ -867,6 +920,7 @@ function renderKPIs(){
   const recus=d.filter(r=>r.statusOps==='RECUSADO'||r.statusOps==='DUPLICADO').length;
   const pend=d.filter(r=>!r.statusOps).length;
   const valorAprov=d.filter(r=>r.statusOps==='APROVADO').reduce((s,r)=>s+r.value,0);
+  const valorPend=d.filter(r=>!r.statusOps).reduce((s,r)=>s+r.value,0);
   const compl=d.filter(r=>r.statusTL&&r.statusTL.includes('LANÇADO')).length;
 
   set('kTotal',N.toLocaleString('pt-BR'));
@@ -876,6 +930,7 @@ function renderKPIs(){
   set('kRecusPct',N>0?`▼ ${((recus/N)*100).toFixed(1)}% do total`:'');
   set('kPend',pend.toLocaleString('pt-BR'));
   set('kValor','R$ '+valorAprov.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  set('kValorPend','R$ '+valorPend.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
   set('kCompl',compl.toLocaleString('pt-BR'));
 }
 
@@ -920,6 +975,32 @@ function renderCharts(){
     top.map(([k])=>k),
     [{data:top.map(([,v])=>v),backgroundColor:'rgba(27,140,244,.55)',borderColor:'#1b8cf4',borderWidth:1,borderRadius:4,borderSkipped:false}],
     {indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'R$ '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:2})}}},scales:{x:{ticks:{color:'#7a9bbf',font:{size:10},callback:v=>'R$'+v.toLocaleString('pt-BR')},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#7a9bbf',font:{size:10}},grid:{display:false}}}}
+  );
+
+  // Tratativas por HUB (bar)
+  const hubMap={};
+  d.forEach(r=>{const h=r.hub||'—';hubMap[h]=(hubMap[h]||0)+1;});
+  const hubSorted=Object.entries(hubMap).sort((a,b)=>b[1]-a[1]);
+  mkChart('cHubs','bar',
+    hubSorted.map(([k])=>k),
+    [{data:hubSorted.map(([,v])=>v),backgroundColor:'rgba(0,212,138,.5)',borderColor:'#00d48a',borderWidth:1,borderRadius:5,borderSkipped:false}],
+    {plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7a9bbf',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#7a9bbf',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'},beginAtZero:true}}}
+  );
+
+  // Evolução por data de rota (line) — agrupado por dia
+  const dayMap={};
+  d.forEach(r=>{
+    const dt=parseBrDate(r.routeDate);
+    if(!dt)return;
+    const key=dt.getTime();
+    dayMap[key]=(dayMap[key]||0)+1;
+  });
+  const days=Object.keys(dayMap).map(Number).sort((a,b)=>a-b);
+  const fmt=t=>{const dt=new Date(t);return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0');};
+  mkChart('cTimeline','line',
+    days.map(fmt),
+    [{data:days.map(t=>dayMap[t]),label:'Tratativas',borderColor:'#1b8cf4',backgroundColor:'rgba(27,140,244,.15)',fill:true,tension:.3,pointRadius:2,pointHoverRadius:5,pointBackgroundColor:'#1b8cf4',borderWidth:2}],
+    {plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7a9bbf',font:{size:9},maxRotation:0,autoSkip:true,maxTicksLimit:12},grid:{display:false}},y:{ticks:{color:'#7a9bbf',font:{size:10},precision:0},grid:{color:'rgba(255,255,255,.04)'},beginAtZero:true}}}
   );
 }
 
@@ -1032,6 +1113,10 @@ function applyFilters(){
   const status=document.getElementById('sStatus').value;
   const type=document.getElementById('sType').value;
   const hub=document.getElementById('sHub').value;
+  const dFrom=document.getElementById('sDateFrom').value; // YYYY-MM-DD ou ''
+  const dTo=document.getElementById('sDateTo').value;
+  const from=dFrom?new Date(dFrom+'T00:00:00'):null;
+  const to=dTo?new Date(dTo+'T23:59:59'):null;
 
   filteredData=allData.filter(r=>{
     if(plate&&!r.plate.includes(plate))return false;
@@ -1040,6 +1125,12 @@ function applyFilters(){
     else if(status&&r.statusOps!==status)return false;
     if(type&&r.type!==type)return false;
     if(hub&&r.hub!==hub)return false;
+    if(from||to){
+      const rd=parseBrDate(r.routeDate);
+      if(!rd)return false;
+      if(from&&rd<from)return false;
+      if(to&&rd>to)return false;
+    }
     return true;
   });
 
@@ -1047,7 +1138,7 @@ function applyFilters(){
 }
 
 function clearFilters(){
-  ['sPlate','sDriver'].forEach(id=>document.getElementById(id).value='');
+  ['sPlate','sDriver','sDateFrom','sDateTo'].forEach(id=>document.getElementById(id).value='');
   ['sStatus','sType','sHub'].forEach(id=>document.getElementById(id).value='');
   filteredData=[...allData];
   renderAll();
@@ -1057,6 +1148,32 @@ function doSort(field){
   if(sortCfg.field===field)sortCfg.dir=sortCfg.dir==='asc'?'desc':'asc';
   else{sortCfg.field=field;sortCfg.dir='desc';}
   renderTable();
+}
+
+// ════════════════════════════════════════════
+// EXPORT CSV (respeita os filtros atuais)
+// ════════════════════════════════════════════
+function exportCsv(){
+  if(!filteredData.length){alert('Nada para exportar com os filtros atuais.');return;}
+  const headers=['Data/Hora','Data Rota','HUB','Placa','ID Rota','Motorista','Tipo','Valor','Status OPS','Complementar TL','OBS','Print'];
+  const esc=v=>{
+    let s=(v==null?'':String(v));
+    if(/[";\n]/.test(s))s='"'+s.replace(/"/g,'""')+'"';
+    return s;
+  };
+  const rows=filteredData.map(r=>[
+    r.timestamp, r.routeDate, r.hub, r.plate, r.routeId, r.driver, r.type,
+    r.value>0?r.value.toFixed(2).replace('.',','):'',   // decimal pt-BR
+    r.statusOps||'PENDENTE', r.statusTL, r.obs, r.printUrl
+  ].map(esc).join(';'));
+  const csv='\uFEFF'+[headers.join(';'),...rows].join('\r\n'); // BOM p/ Excel
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const stamp=new Date().toISOString().slice(0,10);
+  a.href=url; a.download=`tratativas_${stamp}.csv`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
 // ════════════════════════════════════════════
