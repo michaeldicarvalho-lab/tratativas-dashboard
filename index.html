@@ -497,6 +497,14 @@ const DEFAULT_SHEET_ID   = '16relfebqqWVZ0P3xEqqPjPsOCEPktScVnmnNU0H-_iw';
 const DEFAULT_SHEET_NAME = 'Form_Responses2';
 const DEFAULT_INTERVAL   = 3600; // 1 hora
 
+// Limpa config antiga do navegador quando o código embutido muda,
+// evitando que um nome de aba salvo errado sobreponha o padrão correto.
+const CFG_VERSION = '2026-06-10';
+if(localStorage.getItem('cfgVersion') !== CFG_VERSION){
+  ['sheetId','sheetName','interval'].forEach(k=>localStorage.removeItem(k));
+  localStorage.setItem('cfgVersion', CFG_VERSION);
+}
+
 let CFG = {
   sheetId:   localStorage.getItem('sheetId')   || DEFAULT_SHEET_ID,
   sheetName: localStorage.getItem('sheetName') || DEFAULT_SHEET_NAME,
@@ -829,16 +837,24 @@ function parseBrDate(s){
 // GOOGLE SHEETS FETCH
 // ════════════════════════════════════════════
 
+let lastFetchError = '';
 async function fetchSheets(){
   if(!CFG.sheetId)return null;
   const sheet=encodeURIComponent(CFG.sheetName||'Sheet1');
   const url=`https://docs.google.com/spreadsheets/d/${CFG.sheetId}/gviz/tq?tqx=out:csv&sheet=${sheet}`;
   try{
     const r=await fetch(url);
-    if(!r.ok)throw new Error('HTTP '+r.status);
+    if(!r.ok)throw new Error('HTTP '+r.status+' (planilha não está pública?)');
     const csv=await r.text();
-    return parseCsv(csv);
+    if(/^\s*<(!doctype|html)/i.test(csv))
+      throw new Error('a planilha não está pública ou a aba "'+CFG.sheetName+'" não existe');
+    const parsed=parseCsv(csv);
+    if(!parsed.length)
+      throw new Error('aba "'+CFG.sheetName+'" sem linhas válidas');
+    lastFetchError='';
+    return parsed;
   }catch(e){
+    lastFetchError=(e&&e.message)?e.message:'falha de conexão';
     console.warn('Sheets error:',e);
     return null;
   }
@@ -887,7 +903,8 @@ async function loadData(){
     document.getElementById('srcStatus').style.color='var(--green)';
   } else {
     data=EMBEDDED_RAW.map(parseEmbeddedRow).filter(r=>r.driver&&r.driver.length>1);
-    document.getElementById('srcLbl').textContent=`Dados embutidos (${data.length} registros) · Configure Google Sheets em ⚙ para dados em tempo real`;
+    const motivo = (CFG.sheetId && lastFetchError) ? ` · ⚠ falha ao conectar: ${lastFetchError}` : '';
+    document.getElementById('srcLbl').textContent=`Dados embutidos (${data.length} registros)${motivo}`;
     document.getElementById('srcStatus').textContent='⬤ Local';
     document.getElementById('srcStatus').style.color='var(--yellow)';
   }
