@@ -466,16 +466,18 @@ td{padding:9px 14px;white-space:nowrap}
     </div>
     <div class="fg">
       <label>Nome da Aba (como está na planilha)</label>
-      <input id="cfgSheet" placeholder="Respostas ao formulário 1">
+      <input id="cfgSheet" placeholder="Form_Responses2">
     </div>
     <div class="fg">
       <label>Intervalo de atualização automática</label>
       <select id="cfgInterval">
         <option value="0">Desativado</option>
         <option value="30">30 segundos</option>
-        <option value="60" selected>1 minuto</option>
+        <option value="60">1 minuto</option>
         <option value="300">5 minutos</option>
         <option value="600">10 minutos</option>
+        <option value="1800">30 minutos</option>
+        <option value="3600" selected>1 hora</option>
       </select>
     </div>
     <div class="modal-actions">
@@ -489,10 +491,16 @@ td{padding:9px 14px;white-space:nowrap}
 // ════════════════════════════════════════════
 // CONFIG & STATE
 // ════════════════════════════════════════════
+// Planilha embutida por padrão → a conexão ao vivo funciona para qualquer
+// pessoa que abrir o link, sem precisar configurar nada no navegador.
+const DEFAULT_SHEET_ID   = '16relfebqqWVZ0P3xEqqPjPsOCEPktScVnmnNU0H-_iw';
+const DEFAULT_SHEET_NAME = 'Form_Responses2';
+const DEFAULT_INTERVAL   = 3600; // 1 hora
+
 let CFG = {
-  sheetId:   localStorage.getItem('sheetId')   || '',
-  sheetName: localStorage.getItem('sheetName') || 'Respostas ao formulário 1',
-  interval:  parseInt(localStorage.getItem('interval') || '60'),
+  sheetId:   localStorage.getItem('sheetId')   || DEFAULT_SHEET_ID,
+  sheetName: localStorage.getItem('sheetName') || DEFAULT_SHEET_NAME,
+  interval:  parseInt(localStorage.getItem('interval') || DEFAULT_INTERVAL),
 };
 
 let allData = [];
@@ -1189,8 +1197,9 @@ function showCfg(){
 function closeCfg(){document.getElementById('cfgOverlay').classList.remove('show');}
 function saveCfg(){
   CFG.sheetId=document.getElementById('cfgId').value.trim();
-  CFG.sheetName=document.getElementById('cfgSheet').value.trim()||'Respostas ao formulário 1';
-  CFG.interval=parseInt(document.getElementById('cfgInterval').value)||60;
+  CFG.sheetName=document.getElementById('cfgSheet').value.trim()||DEFAULT_SHEET_NAME;
+  const iv=parseInt(document.getElementById('cfgInterval').value);
+  CFG.interval=isNaN(iv)?DEFAULT_INTERVAL:iv;
   localStorage.setItem('sheetId',CFG.sheetId);
   localStorage.setItem('sheetName',CFG.sheetName);
   localStorage.setItem('interval',CFG.interval);
