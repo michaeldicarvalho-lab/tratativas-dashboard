@@ -455,14 +455,16 @@ td{padding:9px 14px;white-space:nowrap}
   <div class="modal">
     <h3>⚙ Conectar ao Google Sheets</h3>
     <div class="hint">
-      <b>Como encontrar o ID da planilha:</b><br>
-      Na URL: docs.google.com/spreadsheets/d/<b style="color:var(--yellow)">SEU_ID_AQUI</b>/edit<br><br>
-      <b>Requisito:</b> Planilha deve estar compartilhada como <b>"Qualquer pessoa com o link pode visualizar"</b>.<br>
-      Vá em Arquivo → Compartilhar → Publicar na web → CSV para garantir acesso.
+      <b>Recomendado (conexão sem bloqueio):</b><br>
+      Na planilha: <b>Arquivo → Compartilhar → Publicar na web</b> → escolha a aba
+      <b style="color:var(--yellow)">Form_Responses2</b> → formato <b>CSV</b> → Publicar.<br>
+      Cole o link gerado (começa com <i>.../d/e/2PACX-...</i>) no campo abaixo.<br><br>
+      <b>Alternativa:</b> cole só o ID da planilha (entre <i>/d/</i> e <i>/edit</i> na URL).
+      Nesse caso a planilha precisa estar como "Qualquer pessoa com o link pode visualizar".
     </div>
     <div class="fg">
-      <label>ID da Planilha Google Sheets *</label>
-      <input id="cfgId" placeholder="Ex: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms">
+      <label>Link publicado (CSV) ou ID da Planilha *</label>
+      <input id="cfgId" placeholder="Cole aqui o link .../pub?...output=csv  (ou o ID)">
     </div>
     <div class="fg">
       <label>Nome da Aba (como está na planilha)</label>
@@ -496,10 +498,13 @@ td{padding:9px 14px;white-space:nowrap}
 const DEFAULT_SHEET_ID   = '16relfebqqWVZ0P3xEqqPjPsOCEPktScVnmnNU0H-_iw';
 const DEFAULT_SHEET_NAME = 'Form_Responses2';
 const DEFAULT_INTERVAL   = 3600; // 1 hora
+// Link "Publicar na web → CSV" (não sofre bloqueio CORS).
+// Quando preenchido, é a fonte oficial de dados ao vivo.
+const DEFAULT_CSV_URL    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9CTl03OkWNwapg36SSA82w6S_DnuRFZXt1RrCo5JepwVR_9_IFIMSNcxLG461fgjA7xW-VA1lVmm/pub?gid=247778766&single=true&output=csv';
 
 // Limpa config antiga do navegador quando o código embutido muda,
 // evitando que um nome de aba salvo errado sobreponha o padrão correto.
-const CFG_VERSION = '2026-06-10';
+const CFG_VERSION = '2026-06-10b';
 if(localStorage.getItem('cfgVersion') !== CFG_VERSION){
   ['sheetId','sheetName','interval'].forEach(k=>localStorage.removeItem(k));
   localStorage.setItem('cfgVersion', CFG_VERSION);
@@ -839,9 +844,14 @@ function parseBrDate(s){
 
 let lastFetchError = '';
 async function fetchSheets(){
-  if(!CFG.sheetId)return null;
-  const sheet=encodeURIComponent(CFG.sheetName||'Sheet1');
-  const url=`https://docs.google.com/spreadsheets/d/${CFG.sheetId}/gviz/tq?tqx=out:csv&sheet=${sheet}`;
+  // Resolve a fonte: 1) link completo colado pelo usuário; 2) link publicado
+  // embutido; 3) fallback gviz montado a partir do ID + aba.
+  let url='';
+  const id=(CFG.sheetId||'').trim();
+  if(/^https?:\/\//i.test(id))      url=id;
+  else if(DEFAULT_CSV_URL)          url=DEFAULT_CSV_URL;
+  else if(id)                       url=`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(CFG.sheetName||'Sheet1')}`;
+  else return null;
   try{
     const r=await fetch(url);
     if(!r.ok)throw new Error('HTTP '+r.status+' (planilha não está pública?)');
